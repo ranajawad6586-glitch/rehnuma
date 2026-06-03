@@ -2,7 +2,6 @@
 import asyncio
 from collections.abc import AsyncIterator
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -48,7 +47,7 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db(*, retries: int = 15, delay: float = 2.0) -> None:
-    """Enable PostGIS and create tables. Idempotent — safe to run every boot.
+    """Create tables. Idempotent — safe to run every boot (used by tests/seeds).
 
     Retries the first connection with backoff: on a cold `docker compose up` the Postgres
     image reports healthy during its initdb restart window before the TCP listener is
@@ -59,7 +58,6 @@ async def init_db(*, retries: int = 15, delay: float = 2.0) -> None:
     for attempt in range(1, retries + 1):
         try:
             async with engine.begin() as conn:
-                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
                 await conn.run_sync(Base.metadata.create_all)
             return
         except Exception as exc:  # connection not ready yet — back off and retry

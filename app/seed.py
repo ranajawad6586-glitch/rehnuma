@@ -1,11 +1,10 @@
-"""Seed the Bahria Town ISB reference plot grid into Postgres/PostGIS.
+"""Seed the Bahria Town ISB reference plot grid into Postgres.
 
 Idempotent: skips if the grid is already present (unless `force=True`, which truncates first).
 Run standalone:  python -m app.seed
 """
 import asyncio
 
-from geoalchemy2 import WKTElement
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,7 +27,8 @@ async def seed_plots(session: AsyncSession, *, force: bool = False) -> int:
             sector=p.sector,
             house_ref=p.house_ref,
             possession_ref=p.possession_ref,
-            geom=WKTElement(p.wkt, srid=4326),
+            lat=p.lat,
+            lng=p.lng,
         )
         for p in generate_grid()
     ]

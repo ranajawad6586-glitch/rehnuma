@@ -4,7 +4,7 @@
 #   docker compose run --rm api python -m app.seed
 services:
   db:
-    image: postgis/postgis:16-3.4
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: rehnuma
       POSTGRES_PASSWORD: rehnuma

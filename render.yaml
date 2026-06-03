@@ -9,7 +9,7 @@ databases:
   - name: rehnuma-db
     databaseName: rehnuma
     user: rehnuma
-    plan: basic-256mb            # PostGIS needs a paid plan; see DEPLOY-RENDER.md
+    plan: free                   # plain Postgres — no PostGIS needed
     postgresMajorVersion: "16"
 
 services:

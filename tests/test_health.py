@@ -10,10 +10,10 @@ async def test_root(client):
     assert "Bahria" in resp.json()["tagline"]
 
 
-async def test_health_reports_db_and_postgis(client):
+async def test_health_reports_db_and_grid(client):
     resp = await client.get("/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
     assert body["db"] == "up"
-    assert body["postgis"], "PostGIS extension should be enabled"
+    assert "plots_seeded" in body
