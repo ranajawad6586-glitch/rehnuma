@@ -1,0 +1,224 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { api, ApiError, getToken } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import type { Listing } from "@/lib/types";
+
+const SIZES = ["5-marla", "10-marla", "1-kanal"];
+const PHASES = [1, 2, 3, 4, 5, 6, 7, 8];
+const SECTORS = ["A", "B", "C", "D", "E", "F"];
+
+export default function ListPropertyPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [form, setForm] = useState({ phase: "4", sector: "C", house_ref: "", size: "10-marla", rent: "", beds: "3", baths: "3" });
+  const [pending, setPending] = useState<File[]>([]); // photos chosen before the listing exists
+  const [created, setCreated] = useState<Listing | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function set<K extends keyof typeof form>(k: K, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function uploadTo(listingId: number, files: File[]): Promise<Listing> {
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
+    const token = getToken();
+    const res = await fetch(`/api/listings/${listingId}/photos`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error((d as { detail?: string }).detail ?? "Photo upload failed");
+    }
+    return res.json();
+  }
+
+  async function create() {
+    setError("");
+    setBusy(true);
+    try {
+      let listing = await api<Listing>("/listings", {
+        method: "POST",
+        body: {
+          phase: Number(form.phase),
+          sector: form.sector,
+          house_ref: form.house_ref,
+          size: form.size,
+          rent: Number(form.rent),
+          beds: Number(form.beds),
+          baths: Number(form.baths),
+          photos: [],
+        },
+      });
+      // Attach any photos chosen on the form.
+      if (pending.length > 0) {
+        listing = await uploadTo(listing.id, pending);
+        setPending([]);
+      }
+      setCreated(listing);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Could not create listing.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadPhotos(files: FileList | null) {
+    if (!created || !files || files.length === 0) return;
+    setError("");
+    setBusy(true);
+    try {
+      setCreated(await uploadTo(created.id, Array.from(files)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function publish() {
+    if (!created) return;
+    setError("");
+    setBusy(true);
+    try {
+      const live = await api<Listing>(`/listings/${created.id}/publish`, { method: "POST" });
+      setCreated(live);
+      if (live.status === "LIVE") router.push(`/listings/${live.id}`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Could not publish.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!user)
+    return (
+      <div className="card p-8 text-center text-ink/60">
+        <a href="/verify" className="text-moss underline">Verify</a> to list a property.
+      </div>
+    );
+
+  return (
+    <div className="max-w-lg mx-auto card p-6 space-y-4">
+      <h1 className="font-display text-2xl text-moss">List your property</h1>
+      <p className="text-sm text-ink/70">
+        We match the plot against the Bahria grid. It only goes LIVE after you’re CNIC-verified.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label">Phase</label>
+          <select className="input" value={form.phase} onChange={(e) => set("phase", e.target.value)}>
+            {PHASES.map((p) => <option key={p} value={p}>Phase {p}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Sector</label>
+          <select className="input" value={form.sector} onChange={(e) => set("sector", e.target.value)}>
+            {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">House ref</label>
+          <input className="input" value={form.house_ref} placeholder="e.g. 500-C" onChange={(e) => set("house_ref", e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Size</label>
+          <select className="input" value={form.size} onChange={(e) => set("size", e.target.value)}>
+            {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Rent / month</label>
+          <input className="input" type="number" value={form.rent} onChange={(e) => set("rent", e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">Beds</label>
+            <input className="input" type="number" value={form.beds} onChange={(e) => set("beds", e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Baths</label>
+            <input className="input" type="number" value={form.baths} onChange={(e) => set("baths", e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {!created && (
+        <div>
+          <label className="label">Photos of your property</label>
+          {pending.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {pending.map((f, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={URL.createObjectURL(f)} alt="selected" className="h-16 w-20 rounded-lg object-cover" />
+              ))}
+            </div>
+          )}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={(e) => setPending(Array.from(e.target.files ?? []))}
+            className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-full file:border-0 file:bg-moss file:px-4 file:py-2 file:text-paper hover:file:bg-moss-dark"
+          />
+          <p className="mt-1 text-xs text-ink/50">JPEG/PNG/WebP, up to 5 MB each. They attach when you create the listing.</p>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-clay-dark">{error}</p>}
+
+      {!created ? (
+        <button className="btn-primary w-full" onClick={() => void create()} disabled={busy}>
+          {pending.length > 0 ? `Match plot & create (with ${pending.length} photo${pending.length > 1 ? "s" : ""})` : "Match plot & create"}
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-moss/10 px-4 py-3 text-sm text-moss-dark">
+            Plot matched ✓ — listing #{created.id} is <strong>{created.status}</strong>.
+          </div>
+
+          {/* Photo upload */}
+          <div>
+            <label className="label">Photos of your property</label>
+            {created.photos.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {created.photos.map((p) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={p} src={p} alt="listing" className="h-16 w-20 rounded-lg object-cover" />
+                ))}
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(e) => void uploadPhotos(e.target.files)}
+              className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-full file:border-0 file:bg-moss file:px-4 file:py-2 file:text-paper hover:file:bg-moss-dark"
+            />
+            <p className="mt-1 text-xs text-ink/50">JPEG/PNG/WebP, up to 5 MB each. Real photos get more inquiries.</p>
+          </div>
+
+          {created.status !== "LIVE" && (
+            <>
+              {!user.cnic_captured && (
+                <p className="text-sm text-ink/70">
+                  Add your CNIC to publish. <a href="/verify" className="text-moss underline">Verify CNIC →</a>
+                </p>
+              )}
+              <button className="btn-clay w-full" onClick={() => void publish()} disabled={busy || !user.cnic_captured}>
+                Publish (go LIVE)
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

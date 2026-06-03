@@ -1,0 +1,14 @@
+# Keep secrets, local cruft, and the frontend out of the API image.
+.env
+.env.*
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.github/
+web/
+node_modules/
+*.md
+generated/

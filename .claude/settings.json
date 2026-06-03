@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -m pytest -q)",
+      "Bash(.venv/bin/python -m py_compile app/*.py app/auth/*.py app/models/*.py app/api/*.py app/grid/*.py)"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+# RehnumaRent — backend dependencies (Python 3.11)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+geoalchemy2==0.16.0
+greenlet==3.1.1
+redis==5.2.1
+pyjwt==2.10.1
+weasyprint==62.3
+pydyf==0.10.0  # weasyprint 62.3 is incompatible with pydyf >=0.11 (Stream.transform API)
+alembic==1.14.0
+cryptography==44.0.0
+minio==7.2.12
+python-multipart==0.0.18
+
+# dev / test
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1
