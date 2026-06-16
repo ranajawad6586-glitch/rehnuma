@@ -26,7 +26,16 @@ async function handler(req: NextRequest, ctx: { params: { path: string[] } }) {
     init.body = await req.arrayBuffer();
   }
 
-  const res = await fetch(target, init);
+  let res: Response;
+  try {
+    res = await fetch(target, init);
+  } catch (e) {
+    // Backend unreachable (e.g. misconfigured API_PROXY_TARGET) — clear error, not a crash.
+    return Response.json(
+      { detail: "Backend unreachable", target: TARGET, error: String(e) },
+      { status: 502 },
+    );
+  }
 
   // Strip hop-by-hop / length headers so the streamed body isn't mismatched.
   const respHeaders = new Headers(res.headers);
