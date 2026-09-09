@@ -21,8 +21,10 @@ same-origin, there is no CORS, and no API key can reach the client.
 
 ## 1. Backend on Render (do this first — you need its URL for step 2)
 
-1. Sign up at https://render.com (no credit card needed for free plans).
-2. **New + → Blueprint** → connect this repo → **Apply**. [render.yaml](render.yaml) creates
+1. One-click: **https://render.com/deploy?repo=https://github.com/ranajawad6586-glitch/rehnuma**
+   Sign in with GitHub (no credit card needed for free plans) and the repo is public, so no
+   extra repo-access grant is required.
+2. Render reads [render.yaml](render.yaml) and shows the plan → **Apply**. It creates
    `rehnumarent-api` (Docker), `rehnumarent-db` (Postgres 16) and `rehnumarent-redis`, all on free plans.
 3. Optionally set `GROQ_API_KEY` on the `rehnumarent-api` service. Without it Rehnuma still replies,
    but with its safe canned advisory instead of live LLM answers.
