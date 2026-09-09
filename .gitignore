@@ -18,3 +18,8 @@ env/
 
 # Docker volumes (if ever bind-mounted)
 pgdata/
+
+# Cloudflare / OpenNext build output
+.open-next/
+.wrangler/
+cloudflare-env.d.ts

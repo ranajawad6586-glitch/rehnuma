@@ -73,12 +73,15 @@ class Settings(BaseSettings):
     apify_actor_id: str | None = None
     apify_run_input_json: str | None = None
 
-    # --- Agreement PDF storage (MinIO / S3-compatible) ---
+    # --- Object storage (PDFs + photos) ---
+    # If MINIO_ACCESS_KEY is empty, the app stores files on the local filesystem (storage_dir)
+    # instead of MinIO/S3 — so it works with no object-storage service configured.
     minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "rehnuma"
-    minio_secret_key: str = "rehnuma-secret"
+    minio_access_key: str = ""
+    minio_secret_key: str = ""
     minio_secure: bool = False
     minio_bucket: str = "agreements"
+    storage_dir: str = "/app/data"  # local-filesystem backend location
 
     # --- Hardening (M10) ---
     # Fixed-window rate limits: (max requests, window seconds).

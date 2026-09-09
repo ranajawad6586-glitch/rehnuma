@@ -1,0 +1,24 @@
+{
+  // Cloudflare Worker for the RehnumaRent Next.js frontend (built by @opennextjs/cloudflare).
+  // The backend (FastAPI) is NOT here — it runs on Render; this Worker proxies /api/* to it
+  // via API_PROXY_TARGET, keeping the browser same-origin so no key is ever exposed.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rehnuma-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  // nodejs_compat: Next needs Node APIs. global_fetch_strictly_public: makes fetch() to our own
+  // hostname go out over the public internet (required by OpenNext).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // Override per-environment with:  npx wrangler secret put API_PROXY_TARGET
+    // or by editing this value to the deployed FastAPI hostname.
+    "API_PROXY_TARGET": "http://localhost:8000"
+  }
+}

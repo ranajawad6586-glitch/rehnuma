@@ -1,9 +1,13 @@
-# Render Blueprint for RehnumaRent. In the Render dashboard: New + → Blueprint → connect the
-# repo. Review costs (this is a paid, multi-service stack). See DEPLOY-RENDER.md for full steps.
+# Render Blueprint for the RehnumaRent BACKEND (FastAPI + Postgres + Redis), all on free plans.
+# The frontend is NOT here — it runs on Cloudflare Workers (see DEPLOY-CLOUDFLARE.md), which
+# proxies /api/* to the `rehnuma-api` service below.
 #
-# Object storage (agreement/listing PDFs + photos) uses an S3-compatible service. The simplest
-# is Cloudflare R2 (free tier) — set the MINIO_* vars below in the dashboard (they're marked
-# sync:false). Local dev still uses the bundled MinIO via docker-compose.
+# In the Render dashboard: New + → Blueprint → connect the repo → Apply.
+#
+# Free-plan caveats (both fine for a demo, both fixable — see DEPLOY-CLOUDFLARE.md):
+#  - The web service sleeps after 15 min idle; the next request cold-starts in ~30-60s.
+#  - Free Postgres expires 90 days after creation, and free services have no persistent disk,
+#    so uploaded listing photos are lost on redeploy. Agreement PDFs regenerate from locked terms.
 
 databases:
   - name: rehnuma-db
@@ -26,7 +30,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: ENV
@@ -49,18 +53,16 @@ services:
         generateValue: true
       - key: PHONE_ENCRYPTION_SECRET
         generateValue: true
-      # Object storage (S3-compatible, e.g. Cloudflare R2) — set in the dashboard.
-      - key: MINIO_ENDPOINT
-        sync: false              # e.g. <account>.r2.cloudflarestorage.com
-      - key: MINIO_ACCESS_KEY
-        sync: false
-      - key: MINIO_SECRET_KEY
-        sync: false
-      - key: MINIO_BUCKET
-        value: rehnuma
-      - key: MINIO_SECURE
-        value: "true"            # R2/S3 use TLS
-      # LLM + scraping (optional) — set in the dashboard.
+      # CORS: the browser talks to the Cloudflare Worker, which proxies here server-side, so no
+      # cross-origin request is made. Nothing to configure.
+      #
+      # Object storage is OPTIONAL: with no MINIO_ACCESS_KEY the app writes to the local
+      # filesystem (STORAGE_DIR). To make uploads durable, add Cloudflare R2 credentials in the
+      # dashboard: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET,
+      # MINIO_SECURE=true.
+      #
+      # LLM + scraping (optional) — set in the dashboard. Without GROQ_API_KEY, Rehnuma returns
+      # its safe canned advisory instead of live answers.
       - key: GROQ_API_KEY
         sync: false
       - key: APIFY_TOKEN
@@ -69,18 +71,3 @@ services:
         sync: false
       - key: APIFY_RUN_INPUT_JSON
         sync: false
-
-  # --- Next.js frontend ---
-  - type: web
-    name: rehnuma-web
-    runtime: docker
-    dockerfilePath: ./web/Dockerfile
-    dockerContext: ./web
-    plan: starter
-    envVars:
-      # The runtime proxy forwards /api/* here (route handler reads this at request time).
-      - key: API_PROXY_TARGET
-        fromService:
-          type: web
-          name: rehnuma-api
-          property: host         # the api's onrender hostname; proxy prepends https://

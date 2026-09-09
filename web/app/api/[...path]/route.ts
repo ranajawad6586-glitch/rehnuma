@@ -5,13 +5,20 @@ import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const RAW_TARGET = process.env.API_PROXY_TARGET || "http://localhost:8000";
-// Allow a bare hostname (e.g. Render's `fromService host`) — default it to https.
-const TARGET = RAW_TARGET.startsWith("http") ? RAW_TARGET : `https://${RAW_TARGET}`;
+// Resolved per REQUEST, not at module scope: on Cloudflare Workers the environment is only
+// bound while a request is in flight, so a module-level read would capture the local default.
+function proxyTarget(): string {
+  const raw = process.env.API_PROXY_TARGET || "http://localhost:8000";
+  // Allow a bare hostname (e.g. Render's `fromService host`) — default it to https.
+  return raw.startsWith("http") ? raw : `https://${raw}`;
+}
 
-async function handler(req: NextRequest, ctx: { params: { path: string[] } }) {
+async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const search = req.nextUrl.search;
-  const target = `${TARGET}/${ctx.params.path.join("/")}${search}`;
+  // Next 15: route-handler params are async.
+  const { path } = await ctx.params;
+  const TARGET = proxyTarget();
+  const target = `${TARGET}/${path.join("/")}${search}`;
 
   const headers = new Headers(req.headers);
   headers.delete("host");
