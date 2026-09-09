@@ -4,6 +4,8 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.dburl import normalize_database_url
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -15,12 +17,9 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _async_pg_scheme(cls, v: str) -> str:
-        # Managed hosts (Render/Heroku) give postgres://… ; we use the asyncpg driver.
-        if v.startswith("postgres://"):
-            return "postgresql+asyncpg://" + v[len("postgres://"):]
-        if v.startswith("postgresql://"):
-            return "postgresql+asyncpg://" + v[len("postgresql://"):]
-        return v
+        # Managed hosts give postgres:// and libpq sslmode/channel_binding params; asyncpg
+        # accepts neither. See app/dburl.py.
+        return normalize_database_url(v)
 
     # Seed the Bahria grid on startup if the plots table is empty.
     auto_seed: bool = False

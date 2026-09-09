@@ -10,7 +10,8 @@ So this split, both on free tiers:
 |---|---|---|
 | Next.js frontend | Cloudflare Workers (`@opennextjs/cloudflare`) | free |
 | FastAPI backend | Render, Docker web service | free |
-| Postgres + Redis | Render managed, free plans | free |
+| Postgres | Neon | free |
+| Redis | Upstash | free |
 | Object storage | local filesystem by default; Cloudflare R2 optional | free |
 
 The browser only ever talks to the Worker. `/api/*` is proxied to Render **server-side** by
@@ -19,18 +20,33 @@ same-origin, there is no CORS, and no API key can reach the client.
 
 ---
 
-## 1. Backend on Render (do this first — you need its URL for step 2)
+## 1. Backend (do this first — you need its URL for step 2)
 
-1. One-click: **https://render.com/deploy?repo=https://github.com/ranajawad6586-glitch/rehnuma**
-   Sign in with GitHub (no credit card needed for free plans) and the repo is public, so no
-   extra repo-access grant is required.
-2. Render reads [render.yaml](render.yaml) and shows the plan → **Apply**. It creates
-   `rehnumarent-api` (Docker), `rehnumarent-db` (Postgres 16) and `rehnumarent-redis`, all on free plans.
-3. Optionally set `GROQ_API_KEY` on the `rehnumarent-api` service. Without it Rehnuma still replies,
-   but with its safe canned advisory instead of live LLM answers.
-4. First boot runs Alembic migrations and seeds the Bahria plot grid (`AUTO_SEED=true`).
-   Confirm: `curl https://rehnumarent-api-XXXX.onrender.com/health` → `{"status":"ok",...,"plots_seeded":1920}`.
-5. Add demo listings — service → **Shell**:
+Three free accounts, none of which asks for a card. Render's *managed database* is what forces
+a paid plan (a free account gets only one, and yours may already be used), so the database and
+Redis come from elsewhere.
+
+### 1a. Postgres — Neon
+1. https://neon.tech → sign in with GitHub → create a project (any name, any region).
+2. Copy the connection string. It looks like
+   `postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require&channel_binding=require`.
+   Paste it as-is — the app rewrites the libpq parameters for asyncpg
+   ([app/dburl.py](app/dburl.py)).
+
+### 1b. Redis — Upstash
+1. https://upstash.com → sign in with GitHub → **Create Database** (Redis, any region).
+2. Copy the **`rediss://`** connection URL (not the REST URL).
+
+### 1c. FastAPI — Render
+1. **https://render.com/deploy?repo=https://github.com/ranajawad6586-glitch/rehnuma**
+   If it says your email already exists, you have an account — sign in at
+   https://dashboard.render.com/login with **GitHub/Google** rather than creating a new one.
+2. Render reads [render.yaml](render.yaml) and prompts for the two values above:
+   `DATABASE_URL` (Neon) and `REDIS_URL` (Upstash). Optionally add `GROQ_API_KEY`. → **Apply**.
+3. First boot runs Alembic migrations and seeds the Bahria plot grid (`AUTO_SEED=true`).
+   Confirm: `curl https://rehnumarent-api-XXXX.onrender.com/health` →
+   `{"status":"ok",...,"plots_seeded":1920}`.
+4. Add demo listings — service → **Shell**:
    ```bash
    python -m app.seed_demo
    python -m app.seed_scraped
@@ -84,10 +100,8 @@ offer + "Fair?" → agreement PDF.
 
 - **Cold starts.** Render free web services sleep after 15 min idle. A `starter` plan ($7/mo)
   removes this.
-- **Postgres expires after 90 days** on Render's free plan. For something permanent, create a
-  free Neon database (https://neon.tech), drop `rehnumarent-db` from the blueprint, and set
-  `DATABASE_URL` to the Neon connection string — the app rewrites `postgres://` to the asyncpg
-  driver itself ([app/config.py](app/config.py#L15-L22)).
+- **Neon scales to zero** on the free plan, so the first query after an idle period takes an
+  extra moment. It does not expire, unlike Render's free database.
 - **Uploads are ephemeral.** Free Render services have no persistent disk, and with no object
   storage configured the app writes to `STORAGE_DIR` in the container
   ([app/storage.py](app/storage.py)). Agreement PDFs regenerate from the deal's locked terms, so
