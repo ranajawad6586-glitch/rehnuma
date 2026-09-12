@@ -57,7 +57,11 @@ class Settings(BaseSettings):
     openrouter_api_key: str | None = None
     anthropic_api_key: str | None = None
 
-    groq_model: str = "llama-3.3-70b-versatile"
+    # CLAUDE.md names llama-3.3-70b-versatile, but Groq decommissioned it — it is absent from
+    # GET /v1/models, so every call 404s and the whole chain falls through to the canned
+    # advisory. gpt-oss-120b is the strongest general model Groq currently serves and handles
+    # Roman Urdu correctly. Override with GROQ_MODEL.
+    groq_model: str = "openai/gpt-oss-120b"
     gemini_model: str = "gemini-2.0-flash"
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct"
     anthropic_model: str = "claude-haiku-4-5-20251001"
