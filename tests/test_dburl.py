@@ -50,3 +50,20 @@ def test_password_with_special_characters_is_preserved():
 def test_local_docker_compose_url_is_unchanged():
     url = "postgresql+asyncpg://rehnuma:rehnuma@localhost:5432/rehnuma"
     assert norm(url) == url
+
+
+def test_pooled_neon_host_disables_the_prepared_statement_cache():
+    # PgBouncer transaction pooling + asyncpg's statement cache => "prepared statement exists".
+    got = norm("postgresql://u:p@ep-x-pooler.c-3.aws.neon.tech/db?sslmode=require")
+    assert "prepared_statement_cache_size=0" in got and "ssl=require" in got
+
+
+def test_direct_host_keeps_the_statement_cache_enabled():
+    got = norm("postgresql://u:p@ep-x.c-3.aws.neon.tech/db?sslmode=require")
+    assert "prepared_statement_cache_size" not in got
+
+
+def test_explicit_statement_cache_setting_is_not_overridden():
+    got = norm("postgresql://u:p@ep-x-pooler.aws.neon.tech/db?prepared_statement_cache_size=50")
+    assert got.count("prepared_statement_cache_size") == 1
+    assert "prepared_statement_cache_size=50" in got

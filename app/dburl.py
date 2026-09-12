@@ -41,4 +41,13 @@ def normalize_database_url(url: str) -> str:
             kept.append(("ssl", SSLMODE_TO_ASYNCPG.get(value, "require")))
             continue
         kept.append((key, value))
+
+    # Neon/Supabase pooled endpoints are PgBouncer in transaction mode, where asyncpg's
+    # prepared-statement cache breaks with "prepared statement already exists" — intermittently
+    # at runtime, and reliably during Alembic migrations. Disabling the cache is the documented
+    # fix. The direct (non-pooler) endpoint is preferred for this app, but honour the pooled one
+    # if it is what the operator configured.
+    if "-pooler" in (parts.hostname or "") and not any(k == "prepared_statement_cache_size" for k, _ in kept):
+        kept.append(("prepared_statement_cache_size", "0"))
+
     return urlunsplit(parts._replace(query=urlencode(kept)))

@@ -28,14 +28,18 @@ Redis come from elsewhere.
 
 ### 1a. Postgres — Neon
 1. https://neon.tech → sign in with GitHub → create a project (any name, any region).
-2. Copy the connection string. It looks like
-   `postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require&channel_binding=require`.
-   Paste it as-is — the app rewrites the libpq parameters for asyncpg
-   ([app/dburl.py](app/dburl.py)).
+2. Copy **your own** connection string from the Connect panel — its shape is
+   `postgresql://<user>:<password>@<your-endpoint>.<region>.aws.neon.tech/neondb?sslmode=require&channel_binding=require`.
+   Keep the query parameters; the app rewrites them for asyncpg ([app/dburl.py](app/dburl.py)).
+3. Prefer the **direct** endpoint over the pooled one (the host *without* `-pooler`). The pooled
+   endpoint is PgBouncer in transaction mode, which collides with asyncpg's prepared-statement
+   cache; the app disables that cache automatically when it sees a `-pooler` host, but the
+   direct endpoint is the better fit for a single long-lived container.
 
 ### 1b. Redis — Upstash
 1. https://upstash.com → sign in with GitHub → **Create Database** (Redis, any region).
-2. Copy the **`rediss://`** connection URL (not the REST URL).
+2. Copy the **`rediss://`** connection URL — not the REST URL, and not the `redis-cli --tls -u
+   ...` example command. The value must begin with `rediss://` (two s's, for TLS).
 
 ### 1c. FastAPI — Render
 1. **https://render.com/deploy?repo=https://github.com/ranajawad6586-glitch/rehnuma**

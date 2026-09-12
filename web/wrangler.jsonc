@@ -19,6 +19,6 @@
   "vars": {
     // Override per-environment with:  npx wrangler secret put API_PROXY_TARGET
     // or by editing this value to the deployed FastAPI hostname.
-    "API_PROXY_TARGET": "http://localhost:8000"
+    "API_PROXY_TARGET": "rehnumarent-api.onrender.com"
   }
 }
