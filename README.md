@@ -4,6 +4,22 @@ Direct-to-deal rental platform for **Bahria Town Islamabad** — no dealer in th
 Verified listings, a neutral AI realtor (Rehnuma), and a structured negotiation → agreement
 pipeline. See [CLAUDE.md](CLAUDE.md) for the full spec and non-negotiable rules.
 
+## Live
+
+| | |
+|---|---|
+| App | https://rehnumarent.slender-group.workers.dev |
+| API | https://rehnumarent-api.onrender.com |
+
+Frontend on Cloudflare Workers, backend on Render (free), Postgres on Neon, Redis on Upstash.
+See [DEPLOY-CLOUDFLARE.md](DEPLOY-CLOUDFLARE.md). Two caveats on the current deployment:
+
+- The Worker is on a **temporary** Cloudflare preview account (no `wrangler login` yet), so the
+  URL is not permanent. `cd web && npx wrangler login && npm run deploy` moves it to a real one.
+- `ENV=dev` is set so the OTP code is returned in the API response. Without it nobody can log
+  in at all, since WhatsApp delivery is not configured — but it does mean anyone can verify any
+  phone number. Fine for a demo, not for real users.
+
 ## Status
 
 - **M1 — Skeleton** ✅ FastAPI + Postgres/PostGIS + Redis via Docker Compose, health check,
