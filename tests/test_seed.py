@@ -35,7 +35,7 @@ async def test_grid_match_by_reference(_db):
         # The M3 verification lookup: match owner-submitted {phase, sector, house_ref}.
         hit = await session.scalar(
             select(Plot).where(
-                Plot.phase == "Phase 4", Plot.sector == "C", Plot.house_ref == "500-C"
+                Plot.phase == "Phase 4", Plot.sector == "Block C", Plot.house_ref == "20"
             )
         )
         assert hit is not None
@@ -44,7 +44,7 @@ async def test_grid_match_by_reference(_db):
         # A house_ref outside the seeded range must NOT match (rejected at verification).
         miss = await session.scalar(
             select(Plot).where(
-                Plot.phase == "Phase 4", Plot.sector == "C", Plot.house_ref == "9999-C"
+                Plot.phase == "Phase 4", Plot.sector == "Block C", Plot.house_ref == "9999"
             )
         )
         assert miss is None

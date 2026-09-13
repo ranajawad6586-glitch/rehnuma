@@ -29,10 +29,10 @@ async def _make_owner(client, phone_e164: str, *, cnic: str | None = None) -> di
 
 
 def _listing_body(house_ref: str, rent: int) -> dict:
-    # Phase 4 / Sector C seeds houses 481..520 -> "481-C".."520-C".
+    # Phase 4 / Sector C seeds houses 481..520 -> "1".."40".
     return {
         "phase": 4,
-        "sector": "C",
+        "sector": "Block C",
         "house_ref": house_ref,
         "size": "10-marla",
         "rent": rent,
@@ -44,7 +44,7 @@ def _listing_body(house_ref: str, rent: int) -> dict:
 
 async def test_create_matches_grid(client, redis_up, seeded):
     headers = await _make_owner(client, "+923002220001", cnic="61101-2220001-1")
-    resp = await client.post("/listings", json=_listing_body("500-C", 90001), headers=headers)
+    resp = await client.post("/listings", json=_listing_body("20", 90001), headers=headers)
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["status"] == "GRID_MATCHED"
@@ -54,7 +54,7 @@ async def test_create_matches_grid(client, redis_up, seeded):
 async def test_create_rejects_unknown_plot(client, redis_up, seeded):
     headers = await _make_owner(client, "+923002220002", cnic="61101-2220002-1")
     # House 999 is outside the seeded Phase 4/Sector C range -> no grid match.
-    resp = await client.post("/listings", json=_listing_body("999-C", 90002), headers=headers)
+    resp = await client.post("/listings", json=_listing_body("999", 90002), headers=headers)
     assert resp.status_code == 422
 
 
@@ -62,7 +62,7 @@ async def test_publish_requires_cnic_then_goes_live_and_visible(client, redis_up
     rent = 90003
     # Owner WITHOUT cnic first.
     headers = await _make_owner(client, "+923002220003")
-    created = await client.post("/listings", json=_listing_body("501-C", rent), headers=headers)
+    created = await client.post("/listings", json=_listing_body("21", rent), headers=headers)
     lid = created.json()["id"]
 
     # Not visible to tenants yet (filter by the unique rent to isolate).
@@ -90,7 +90,7 @@ async def test_publish_requires_cnic_then_goes_live_and_visible(client, redis_up
 
 async def test_non_owner_cannot_publish(client, redis_up, seeded):
     owner = await _make_owner(client, "+923002220004", cnic="61101-2220004-1")
-    created = await client.post("/listings", json=_listing_body("502-C", 90004), headers=owner)
+    created = await client.post("/listings", json=_listing_body("22", 90004), headers=owner)
     lid = created.json()["id"]
 
     other = await _make_owner(client, "+923002220005", cnic="61101-2220005-1")
@@ -101,7 +101,7 @@ async def test_non_owner_cannot_publish(client, redis_up, seeded):
 async def test_delist_removes_from_tenant_view(client, redis_up, seeded):
     rent = 90006
     headers = await _make_owner(client, "+923002220006", cnic="61101-2220006-1")
-    created = await client.post("/listings", json=_listing_body("503-C", rent), headers=headers)
+    created = await client.post("/listings", json=_listing_body("23", rent), headers=headers)
     lid = created.json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=headers)
     assert (await client.get("/listings", params={"min_rent": rent, "max_rent": rent})).json()
@@ -115,7 +115,7 @@ async def test_delist_removes_from_tenant_view(client, redis_up, seeded):
 
 async def test_mine_shows_all_statuses(client, redis_up, seeded):
     headers = await _make_owner(client, "+923002220007", cnic="61101-2220007-1")
-    await client.post("/listings", json=_listing_body("504-C", 90007), headers=headers)
+    await client.post("/listings", json=_listing_body("24", 90007), headers=headers)
     mine = await client.get("/listings/mine", headers=headers)
     assert mine.status_code == 200
     assert any(x["status"] == "GRID_MATCHED" for x in mine.json())

@@ -28,7 +28,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 async def _open_deal(client, house_ref, rent, owner_phone, owner_cnic, tenant_phone, tenant_cnic):
     owner = await _make_user(client, owner_phone, cnic=owner_cnic)
-    body = {"phase": 4, "sector": "C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)
@@ -46,7 +46,7 @@ def _offer(rent, advance=3, security=None, months=12, move_in="2026-08-01"):
 
 async def test_counter_loop_then_accept_locks_terms(client, redis_up, seeded):
     owner, tenant, did = await _open_deal(
-        client, "517-C", 180000, "+923006660001", "61101-6660001-1", "+923006660002", "61101-6660002-1"
+        client, "37", 180000, "+923006660001", "61101-6660001-1", "+923006660002", "61101-6660002-1"
     )
 
     # Tenant offers below asking -> OFFER_SENT.
@@ -73,7 +73,7 @@ async def test_counter_loop_then_accept_locks_terms(client, redis_up, seeded):
 
 async def test_cannot_accept_own_offer(client, redis_up, seeded):
     owner, tenant, did = await _open_deal(
-        client, "518-C", 180000, "+923006660003", "61101-6660003-1", "+923006660004", "61101-6660004-1"
+        client, "38", 180000, "+923006660003", "61101-6660003-1", "+923006660004", "61101-6660004-1"
     )
     o = await client.post(f"/deals/{did}/offers", json=_offer(170000), headers=tenant)
     resp = await client.post(f"/deals/{did}/offers/{o.json()['id']}/accept", headers=tenant)
@@ -82,7 +82,7 @@ async def test_cannot_accept_own_offer(client, redis_up, seeded):
 
 async def test_no_offers_before_chat_open(client, redis_up, seeded):
     owner = await _make_user(client, "+923006660005", cnic="61101-6660005-1")
-    body = {"phase": 4, "sector": "C", "house_ref": "519-C", "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": "39", "size": "10-marla",
             "rent": 180000, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)
@@ -95,7 +95,7 @@ async def test_no_offers_before_chat_open(client, redis_up, seeded):
 
 async def test_fairness_check_endpoint(client, redis_up, seeded):
     owner, tenant, did = await _open_deal(
-        client, "520-C", 180000, "+923006660007", "61101-6660007-1", "+923006660008", "61101-6660008-1"
+        client, "40", 180000, "+923006660007", "61101-6660007-1", "+923006660008", "61101-6660008-1"
     )
     # A 6-month advance must come back not-fair with the red flag.
     resp = await client.post(f"/deals/{did}/offers/check", json=_offer(180000, advance=6), headers=tenant)
@@ -107,7 +107,7 @@ async def test_fairness_check_endpoint(client, redis_up, seeded):
 
 async def test_no_more_offers_after_accept(client, redis_up, seeded):
     owner, tenant, did = await _open_deal(
-        client, "481-C", 180000, "+923006660009", "61101-6660009-1", "+923006660010", "61101-6660010-1"
+        client, "1", 180000, "+923006660009", "61101-6660009-1", "+923006660010", "61101-6660010-1"
     )
     o = await client.post(f"/deals/{did}/offers", json=_offer(175000), headers=tenant)
     await client.post(f"/deals/{did}/offers/{o.json()['id']}/accept", headers=owner)

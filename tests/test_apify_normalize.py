@@ -30,7 +30,7 @@ def test_parse_area_fits_columns():
     phase, sector = parse_area("Bahria Town Phase 8 - Block H, Rawalpindi")
     assert phase == "Phase 8"
     assert sector == "H"
-    assert len(phase) <= 16 and len(sector) <= 8
+    assert len(phase) <= 16 and len(sector) <= 64
     assert parse_area("Chaklala Scheme 3")[0] == "Chaklala 3"
     assert parse_area("DHA Defence, Rawalpindi")[0][:3] == "DHA"
 
@@ -90,3 +90,20 @@ def test_normalize_real_zameen_actor_shape():
 def test_size_from_sqft_when_no_title_size():
     out = normalize_item({"url": "u", "price": 90000, "location": "Phase 4", "area": 1125, "area_unit": "sqft"})
     assert out["size"] == "5-marla"  # 1125 sqft / 225 = 5 marla
+
+
+def test_named_sub_scheme_is_kept_whole_not_truncated():
+    # "Overseas Enclave" is the address residents give; the old 8-char column clipped it.
+    phase, sector = parse_area("Bahria Town Rawalpindi, Bahria Town Phase 8, Overseas Enclave")
+    assert phase == "Phase 8"
+    assert sector == "Overseas Enclave"
+
+
+def test_named_sub_scheme_wins_over_a_bare_block_letter():
+    _, sector = parse_area("Bahria Town Phase 8, Safari Valley, Block B")
+    assert sector == "Safari Valley"
+
+
+def test_falls_back_to_block_letter_then_main():
+    assert parse_area("Bahria Town Phase 8 - Block H, Rawalpindi")[1] == "H"
+    assert parse_area("Bahria Town Phase 5")[1] == "Main"

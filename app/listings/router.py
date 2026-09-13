@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user
 from app.db import get_session
+from app.grid.bahria import BLOCKS_BY_PHASE, HOUSE_SIZES, PHASES
 from app.listings.schemas import ListingCreate, ListingOut
 from app.listings.status import ListingStatus, can_transition
 from app.models.listing import Listing
@@ -25,6 +26,17 @@ router = APIRouter(tags=["listings"])
 _IMAGE_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _MAX_PHOTOS = 12
+
+
+@router.get("/listings/grid")
+async def grid_options() -> dict:
+    """The valid address space, so the owner form offers real choices instead of a free text
+    box (and cannot drift from the seeded grid). Public: needed before sign-in."""
+    return {
+        "phases": list(PHASES),
+        "blocks_by_phase": {str(p): list(BLOCKS_BY_PHASE[p]) for p in PHASES},
+        "sizes": list(HOUSE_SIZES),
+    }
 
 
 async def _match_plot(session: AsyncSession, phase: int, sector: str, house_ref: str) -> Plot | None:

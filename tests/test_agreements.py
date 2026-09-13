@@ -29,7 +29,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 async def _accepted_deal(client, house_ref, rent, ophone, ocnic, tphone, tcnic):
     owner = await _make_user(client, ophone, cnic=ocnic)
-    body = {"phase": 4, "sector": "C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)
@@ -44,7 +44,7 @@ async def _accepted_deal(client, house_ref, rent, ophone, ocnic, tphone, tcnic):
 
 async def test_generate_agreement_and_download_pdf(client, redis_up, seeded, storage_up):
     owner, tenant, did = await _accepted_deal(
-        client, "483-C", 180000, "+923008880001", "61101-8880001-1", "+923008880002", "61101-8880002-1"
+        client, "3", 180000, "+923008880001", "61101-8880001-1", "+923008880002", "61101-8880002-1"
     )
 
     gen = await client.post(f"/deals/{did}/agreement", headers=tenant)
@@ -69,7 +69,7 @@ async def test_generate_agreement_and_download_pdf(client, redis_up, seeded, sto
 
 async def test_generate_is_idempotent(client, redis_up, seeded, storage_up):
     owner, tenant, did = await _accepted_deal(
-        client, "484-C", 120000, "+923008880003", "61101-8880003-1", "+923008880004", "61101-8880004-1"
+        client, "4", 120000, "+923008880003", "61101-8880003-1", "+923008880004", "61101-8880004-1"
     )
     a1 = await client.post(f"/deals/{did}/agreement", headers=tenant)
     a2 = await client.post(f"/deals/{did}/agreement", headers=owner)
@@ -78,7 +78,7 @@ async def test_generate_is_idempotent(client, redis_up, seeded, storage_up):
 
 async def test_cannot_generate_before_accept(client, redis_up, seeded):
     owner = await _make_user(client, "+923008880005", cnic="61101-8880005-1")
-    body = {"phase": 4, "sector": "C", "house_ref": "485-C", "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": "5", "size": "10-marla",
             "rent": 150000, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)
@@ -92,7 +92,7 @@ async def test_cannot_generate_before_accept(client, redis_up, seeded):
 
 async def test_police_form_pdf(client, redis_up, seeded, storage_up):
     owner, tenant, did = await _accepted_deal(
-        client, "486-C", 90000, "+923008880007", "61101-8880007-1", "+923008880008", "61101-8880008-1"
+        client, "6", 90000, "+923008880007", "61101-8880007-1", "+923008880008", "61101-8880008-1"
     )
     resp = await client.get(f"/deals/{did}/police-verification-form", headers=tenant)
     assert resp.status_code == 200
@@ -101,7 +101,7 @@ async def test_police_form_pdf(client, redis_up, seeded, storage_up):
 
 async def test_sign_completes_lifecycle(client, redis_up, seeded, storage_up):
     owner, tenant, did = await _accepted_deal(
-        client, "487-C", 90000, "+923008880009", "61101-8880009-1", "+923008880010", "61101-8880010-1"
+        client, "7", 90000, "+923008880009", "61101-8880009-1", "+923008880010", "61101-8880010-1"
     )
     await client.post(f"/deals/{did}/agreement", headers=tenant)
     signed = await client.post(f"/deals/{did}/sign", headers=owner)

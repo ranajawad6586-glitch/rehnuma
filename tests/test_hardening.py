@@ -30,7 +30,7 @@ async def _make_owner(client, phone, cnic):
 
 
 async def _live_listing(client, headers, house_ref, rent):
-    body = {"phase": 4, "sector": "C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=headers)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=headers)
@@ -71,8 +71,8 @@ async def test_comp_refresh_caches_stats(client, redis_up, seeded):
     import json
 
     owner = await _make_owner(client, "+923009990101", "61101-9990101-1")
-    await _live_listing(client, owner, "490-C", 160000)
-    await _live_listing(client, owner, "491-C", 200000)
+    await _live_listing(client, owner, "10", 160000)
+    await _live_listing(client, owner, "11", 200000)
 
     groups = await refresh_comps()
     assert groups >= 1
@@ -91,8 +91,8 @@ async def test_expire_stale_listings(client, redis_up, seeded):
     from app.models.listing import Listing
 
     owner = await _make_owner(client, "+923009990102", "61101-9990102-1")
-    old_id = await _live_listing(client, owner, "492-C", 150000)
-    fresh_id = await _live_listing(client, owner, "493-C", 150000)
+    old_id = await _live_listing(client, owner, "12", 150000)
+    fresh_id = await _live_listing(client, owner, "13", 150000)
 
     # Age the first listing past the window.
     sm = get_sessionmaker()

@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Listing } from "@/lib/types";
 
-const SIZES = ["5-marla", "10-marla", "1-kanal"];
-const PHASES = [1, 2, 3, 4, 5, 6, 7, 8];
-const SECTORS = ["A", "B", "C", "D", "E", "F"];
+// The address space comes from the server (GET /listings/grid) so these choices can never
+// drift from the seeded Bahria grid — a mismatch here is rejected on submit.
+type Grid = { phases: number[]; blocks_by_phase: Record<string, string[]>; sizes: string[] };
+const FALLBACK_GRID: Grid = { phases: [8], blocks_by_phase: { "8": [] }, sizes: ["10-marla"] };
 
 export default function ListPropertyPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [form, setForm] = useState({ phase: "4", sector: "C", house_ref: "", size: "10-marla", rent: "", beds: "3", baths: "3" });
+  const [grid, setGrid] = useState<Grid | null>(null);
+  const [form, setForm] = useState({ phase: "8", sector: "", house_ref: "", size: "10-marla", rent: "", beds: "3", baths: "3" });
   const [pending, setPending] = useState<File[]>([]); // photos chosen before the listing exists
   const [created, setCreated] = useState<Listing | null>(null);
   const [error, setError] = useState("");
@@ -21,6 +23,25 @@ export default function ListPropertyPage() {
 
   function set<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  useEffect(() => {
+    api<Grid>("/listings/grid", { auth: false })
+      .then((g) => {
+        setGrid(g);
+        // Blocks are per-phase, so seed the selection with a valid pair.
+        setForm((f) => ({ ...f, sector: g.blocks_by_phase[f.phase]?.[0] ?? "" }));
+      })
+      .catch(() => setGrid(FALLBACK_GRID));
+  }, []);
+
+  const g = grid ?? FALLBACK_GRID;
+  const blocks = g.blocks_by_phase[form.phase] ?? [];
+
+  // Changing phase must reset the block: "Umer Block" exists only in Phase 8.
+  function setPhase(v: string) {
+    const next = g.blocks_by_phase[v] ?? [];
+    setForm((f) => ({ ...f, phase: v, sector: next.includes(f.sector) ? f.sector : (next[0] ?? "") }));
   }
 
   async function uploadTo(listingId: number, files: File[]): Promise<Listing> {
@@ -114,24 +135,24 @@ export default function ListPropertyPage() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Phase</label>
-          <select className="input" value={form.phase} onChange={(e) => set("phase", e.target.value)}>
-            {PHASES.map((p) => <option key={p} value={p}>Phase {p}</option>)}
+          <select className="input" value={form.phase} onChange={(e) => setPhase(e.target.value)}>
+            {g.phases.map((p) => <option key={p} value={p}>Phase {p}</option>)}
           </select>
         </div>
         <div>
-          <label className="label">Sector</label>
+          <label className="label">Block / Sector</label>
           <select className="input" value={form.sector} onChange={(e) => set("sector", e.target.value)}>
-            {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+            {blocks.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
         </div>
         <div>
-          <label className="label">House ref</label>
-          <input className="input" value={form.house_ref} placeholder="e.g. 500-C" onChange={(e) => set("house_ref", e.target.value)} />
+          <label className="label">House number</label>
+          <input className="input" value={form.house_ref} placeholder="e.g. 129" onChange={(e) => set("house_ref", e.target.value)} />
         </div>
         <div>
           <label className="label">Size</label>
           <select className="input" value={form.size} onChange={(e) => set("size", e.target.value)}>
-            {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {g.sizes.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>

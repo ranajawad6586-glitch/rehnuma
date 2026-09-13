@@ -10,10 +10,10 @@ def test_neutrality_framing_preserved():
 
 
 def test_context_is_injected():
-    p = build_system_prompt(size="10-marla", sector="Sector C", house="500-C", rent="185,000", beds=4, baths=4)
+    p = build_system_prompt(size="10-marla", sector="Block C", house="20", rent="185,000", beds=4, baths=4)
     assert "10-marla" in p
-    assert "Sector C" in p
-    assert "500-C" in p
+    assert "Block C" in p
+    assert "20" in p
     assert "185,000" in p
 
 

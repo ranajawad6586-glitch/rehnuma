@@ -31,7 +31,7 @@ def test_advisories_are_hedged_and_never_fix_rs_200():
 def test_agreement_html_contains_terms_and_duty():
     ctx = {
         "date": "2026-06-01", "owner_name": "Owner A", "tenant_name": "Tenant B",
-        "size": "10-marla", "sector": "Sector C, Phase 4", "house_ref": "500-C",
+        "size": "10-marla", "sector": "Block C, Phase 4", "house_ref": "20",
         "rent": 175000, "advance_months": 3, "security": 175000, "duration_months": 12,
         "move_in": "2026-08-01", "notice_weeks": 4, "annual_rent": 2_100_000,
         "stamp_duty_label": "Rs 2,000 (annual rent over Rs 500,000)",
@@ -41,14 +41,14 @@ def test_agreement_html_contains_terms_and_duty():
     assert "TENANCY AGREEMENT" in html
     assert "Rs 175,000" in html
     assert "Rs 2,000" in html
-    assert "500-C" in html
+    assert "20" in html
     assert "4 weeks" in html
 
 
 def test_police_form_leaves_cnic_blank():
     ctx = {
         "date": "2026-06-01", "owner_name": "Owner A", "tenant_name": "Tenant B",
-        "size": "10-marla", "sector": "Sector C, Phase 4", "house_ref": "500-C",
+        "size": "10-marla", "sector": "Block C, Phase 4", "house_ref": "20",
         "duration_months": 12, "move_in": "2026-08-01",
     }
     html = build_police_verification_html(ctx)

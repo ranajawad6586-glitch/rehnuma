@@ -27,7 +27,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 
 async def _live_listing(client, owner_headers, house_ref: str, rent: int) -> int:
-    body = {"phase": 4, "sector": "C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner_headers)).json()["id"]
     assert (await client.post(f"/listings/{lid}/publish", headers=owner_headers)).status_code == 200
@@ -36,7 +36,7 @@ async def _live_listing(client, owner_headers, house_ref: str, rent: int) -> int
 
 async def test_chat_requires_tenant_verification(client, redis_up, seeded):
     owner = await _make_user(client, "+923005550001", cnic="61101-5550001-1")
-    lid = await _live_listing(client, owner, "512-C", 150000)
+    lid = await _live_listing(client, owner, "32", 150000)
 
     # Tenant WITHOUT cnic.
     tenant = await _make_user(client, "+923005550002")
@@ -61,14 +61,14 @@ async def test_chat_requires_tenant_verification(client, redis_up, seeded):
 
 async def test_cannot_inquire_on_own_listing(client, redis_up, seeded):
     owner = await _make_user(client, "+923005550003", cnic="61101-5550003-1")
-    lid = await _live_listing(client, owner, "513-C", 150000)
+    lid = await _live_listing(client, owner, "33", 150000)
     resp = await client.post("/deals", json={"listing_id": lid}, headers=owner)
     assert resp.status_code == 400
 
 
 async def test_messaging_between_owner_and_tenant(client, redis_up, seeded):
     owner = await _make_user(client, "+923005550004", cnic="61101-5550004-1")
-    lid = await _live_listing(client, owner, "514-C", 160000)
+    lid = await _live_listing(client, owner, "34", 160000)
     tenant = await _make_user(client, "+923005550005", cnic="61101-5550005-1")
 
     did = (await client.post("/deals", json={"listing_id": lid}, headers=tenant)).json()["id"]
@@ -90,7 +90,7 @@ async def test_messaging_between_owner_and_tenant(client, redis_up, seeded):
 
 async def test_contact_hidden_until_mutual_consent(client, redis_up, seeded):
     owner = await _make_user(client, "+923005550007", cnic="61101-5550007-1")
-    lid = await _live_listing(client, owner, "515-C", 170000)
+    lid = await _live_listing(client, owner, "35", 170000)
     tenant = await _make_user(client, "+923005550008", cnic="61101-5550008-1")
 
     did = (await client.post("/deals", json={"listing_id": lid}, headers=tenant)).json()["id"]

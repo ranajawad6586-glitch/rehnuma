@@ -23,10 +23,10 @@ class Listing(Base):
 
     # Address as submitted (kept for the record even before/after the plot match).
     phase: Mapped[str] = mapped_column(String(16), nullable=False)
-    sector: Mapped[str] = mapped_column(String(8), nullable=False)
+    sector: Mapped[str] = mapped_column(String(64), nullable=False)
     house_ref: Mapped[str] = mapped_column(String(32), nullable=False)
 
-    size: Mapped[str] = mapped_column(String(16), nullable=False)  # 5-marla | 10-marla | 1-kanal
+    size: Mapped[str] = mapped_column(String(16), nullable=False)  # see grid.bahria.HOUSE_SIZES
     rent: Mapped[int] = mapped_column(Integer, nullable=False)     # PKR / month
     beds: Mapped[int] = mapped_column(Integer, nullable=False)
     baths: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -17,14 +17,16 @@ from app.models.user import User
 from app.security import encrypt_phone, hash_identifier
 
 # (phone, name, cnic) for demo owners + their listings.
+# Addresses use the real Bahria block names from app.grid.bahria and plain house numbers, so
+# they match the seeded grid the same way an owner's submission would.
 _DEMO = [
     ("+923001110001", "Bilal Khan", "61101-1110001-1", [
-        {"phase": "Phase 4", "sector": "C", "house_ref": "500-C", "size": "10-marla", "rent": 185000, "beds": 4, "baths": 4},
-        {"phase": "Phase 2", "sector": "B", "house_ref": "242-B", "size": "5-marla", "rent": 95000, "beds": 3, "baths": 3},
+        {"phase": "Phase 8", "sector": "Umer Block", "house_ref": "12", "size": "7-marla", "rent": 145000, "beds": 3, "baths": 3},
+        {"phase": "Phase 4", "sector": "Block C", "house_ref": "20", "size": "10-marla", "rent": 185000, "beds": 4, "baths": 4},
     ]),
     ("+923001110002", "Sana Ahmed", "61101-1110002-1", [
-        {"phase": "Phase 7", "sector": "D", "house_ref": "830-D", "size": "1-kanal", "rent": 420000, "beds": 5, "baths": 5},
-        {"phase": "Phase 1", "sector": "A", "house_ref": "101-A", "size": "10-marla", "rent": 165000, "beds": 3, "baths": 3},
+        {"phase": "Phase 8", "sector": "Sector E-1", "house_ref": "45", "size": "1-kanal", "rent": 420000, "beds": 5, "baths": 5},
+        {"phase": "Phase 2", "sector": "Block B", "house_ref": "88", "size": "10-marla", "rent": 165000, "beds": 3, "baths": 3},
     ]),
 ]
 

@@ -14,6 +14,10 @@ from typing import Any
 _SIZE_RE = re.compile(r"([\d.]+)\s*(marla|kanal)", re.I)
 _PHASE_RE = re.compile(r"phase\s*([1-8])", re.I)
 _BLOCK_RE = re.compile(r"\b(?:block|sector)\s*([A-Za-z0-9]{1,6})", re.I)
+# Named Bahria sub-schemes that residents use as the address instead of a block letter.
+_NAMED_AREA_RE = re.compile(
+    r"\b(?:overseas enclave|safari valley|awami villas(?:\s*\d)?|bahria orchard"
+    r"|bahria heights|rose garden|bahria greens|bahria hamlet)\b", re.I)
 
 
 def _first(item: dict, *keys: str) -> Any:
@@ -65,7 +69,7 @@ def parse_size(value: Any) -> str:
 
 
 def parse_area(location: Any) -> tuple[str, str]:
-    """Return (phase, sector) fitted to the column widths (16 / 8)."""
+    """Return (phase, sector) fitted to the column widths (16 / 64)."""
     text = str(location or "")
     phase_m = _PHASE_RE.search(text)
     if phase_m:
@@ -86,8 +90,17 @@ def parse_area(location: Any) -> tuple[str, str]:
             # First meaningful chunk of the location, trimmed to fit.
             phase = (text.split(",")[0].strip() or "Rawalpindi")[:16]
     block_m = _BLOCK_RE.search(text)
-    sector = (block_m.group(1) if block_m else "Main")[:8]
-    return phase[:16], sector
+    # Named sub-schemes ("Overseas Enclave", "Safari Valley") are how residents give the
+    # address, so prefer them over a bare block letter, and keep them whole — the sector
+    # column is 64 chars now, no longer 8.
+    named = _NAMED_AREA_RE.search(text)
+    if named:
+        sector = named.group(0).title()
+    elif block_m:
+        sector = block_m.group(1)
+    else:
+        sector = "Main"
+    return phase[:16], sector[:64]
 
 
 _DEFAULT_BEDS = {"1-kanal": 5, "10-marla": 4, "7-marla": 3, "5-marla": 3}

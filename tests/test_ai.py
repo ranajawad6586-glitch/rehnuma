@@ -34,7 +34,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 
 async def _publish_listing(client, headers, house_ref: str, rent: int) -> int:
-    body = {"phase": 4, "sector": "C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     created = await client.post("/listings", json=body, headers=headers)
     lid = created.json()["id"]
@@ -77,8 +77,8 @@ async def test_ask_requires_auth(client, redis_up):
 async def test_ask_with_listing_context(client, redis_up, seeded):
     owner = await _make_user(client, "+923004440002", cnic="61101-4440002-1")
     # Two LIVE listings of the same size/phase so comps are non-trivial.
-    await _publish_listing(client, owner, "510-C", 170000)
-    lid = await _publish_listing(client, owner, "511-C", 190000)
+    await _publish_listing(client, owner, "30", 170000)
+    lid = await _publish_listing(client, owner, "31", 190000)
 
     tenant = await _make_user(client, "+923004440003")
     resp = await client.post(
