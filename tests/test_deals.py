@@ -27,7 +27,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 
 async def _live_listing(client, owner_headers, house_ref: str, rent: int) -> int:
-    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner_headers)).json()["id"]
     assert (await client.post(f"/listings/{lid}/publish", headers=owner_headers)).status_code == 200

@@ -32,7 +32,8 @@ def _listing_body(house_ref: str, rent: int) -> dict:
     # Phase 4 / Sector C seeds houses 481..520 -> "1".."40".
     return {
         "phase": 4,
-        "sector": "Block C",
+        "sector": "",
+        "street": "Street 7",
         "house_ref": house_ref,
         "size": "10-marla",
         "rent": rent,

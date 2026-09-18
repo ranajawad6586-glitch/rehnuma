@@ -29,7 +29,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 async def _accepted_deal(client, house_ref, rent, ophone, ocnic, tphone, tcnic):
     owner = await _make_user(client, ophone, cnic=ocnic)
-    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)
@@ -78,7 +78,7 @@ async def test_generate_is_idempotent(client, redis_up, seeded, storage_up):
 
 async def test_cannot_generate_before_accept(client, redis_up, seeded):
     owner = await _make_user(client, "+923008880005", cnic="61101-8880005-1")
-    body = {"phase": 4, "sector": "Block C", "house_ref": "5", "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": "5", "size": "10-marla",
             "rent": 150000, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)

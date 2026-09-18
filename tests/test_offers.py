@@ -28,7 +28,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 async def _open_deal(client, house_ref, rent, owner_phone, owner_cnic, tenant_phone, tenant_cnic):
     owner = await _make_user(client, owner_phone, cnic=owner_cnic)
-    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)
@@ -82,7 +82,7 @@ async def test_cannot_accept_own_offer(client, redis_up, seeded):
 
 async def test_no_offers_before_chat_open(client, redis_up, seeded):
     owner = await _make_user(client, "+923006660005", cnic="61101-6660005-1")
-    body = {"phase": 4, "sector": "Block C", "house_ref": "39", "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": "39", "size": "10-marla",
             "rent": 180000, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=owner)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=owner)

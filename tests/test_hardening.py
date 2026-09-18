@@ -30,7 +30,7 @@ async def _make_owner(client, phone, cnic):
 
 
 async def _live_listing(client, headers, house_ref, rent):
-    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     lid = (await client.post("/listings", json=body, headers=headers)).json()["id"]
     await client.post(f"/listings/{lid}/publish", headers=headers)

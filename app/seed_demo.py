@@ -21,12 +21,12 @@ from app.security import encrypt_phone, hash_identifier
 # they match the seeded grid the same way an owner's submission would.
 _DEMO = [
     ("+923001110001", "Bilal Khan", "61101-1110001-1", [
-        {"phase": "Phase 8", "sector": "Umer Block", "house_ref": "12", "size": "7-marla", "rent": 145000, "beds": 3, "baths": 3},
-        {"phase": "Phase 4", "sector": "Block C", "house_ref": "20", "size": "10-marla", "rent": 185000, "beds": 4, "baths": 4},
+        {"phase": "Phase 8", "sector": "Umer Block", "street": "Street 4", "house_ref": "12", "size": "7-marla", "rent": 145000, "beds": 3, "baths": 3},
+        {"phase": "Phase 4", "sector": "", "street": "Street 22", "house_ref": "20", "size": "10-marla", "rent": 185000, "beds": 4, "baths": 4},
     ]),
     ("+923001110002", "Sana Ahmed", "61101-1110002-1", [
-        {"phase": "Phase 8", "sector": "Sector E-1", "house_ref": "45", "size": "1-kanal", "rent": 420000, "beds": 5, "baths": 5},
-        {"phase": "Phase 2", "sector": "Block B", "house_ref": "88", "size": "10-marla", "rent": 165000, "beds": 3, "baths": 3},
+        {"phase": "Phase 8", "sector": "Sector E-1", "street": "Street 9", "house_ref": "15", "size": "1-kanal", "rent": 420000, "beds": 5, "baths": 5},
+        {"phase": "Phase 2", "sector": "", "street": "Street 31", "house_ref": "8", "size": "10-marla", "rent": 165000, "beds": 3, "baths": 3},
     ]),
 ]
 
@@ -49,7 +49,8 @@ async def seed_demo() -> int:
             for spec in listings:
                 plot = await session.scalar(
                     select(Plot).where(
-                        Plot.phase == spec["phase"], Plot.sector == spec["sector"], Plot.house_ref == spec["house_ref"]
+                        Plot.phase == spec["phase"], Plot.sector == spec["sector"],
+                        Plot.street == spec["street"], Plot.house_ref == spec["house_ref"]
                     )
                 )
                 if plot is None:
@@ -62,6 +63,7 @@ async def seed_demo() -> int:
                     continue
                 session.add(Listing(
                     owner_id=owner.id, plot_id=plot.id, phase=spec["phase"], sector=spec["sector"],
+                    street=spec["street"],
                     house_ref=spec["house_ref"], size=spec["size"], rent=spec["rent"], beds=spec["beds"],
                     baths=spec["baths"], status=ListingStatus.LIVE.value, photos=[],
                 ))

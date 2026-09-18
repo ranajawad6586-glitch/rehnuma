@@ -34,7 +34,7 @@ async def _make_user(client, phone_e164: str, *, cnic: str | None = None) -> dic
 
 
 async def _publish_listing(client, headers, house_ref: str, rent: int) -> int:
-    body = {"phase": 4, "sector": "Block C", "house_ref": house_ref, "size": "10-marla",
+    body = {"phase": 4, "sector": "", "street": "Street 7", "house_ref": house_ref, "size": "10-marla",
             "rent": rent, "beds": 3, "baths": 3, "photos": []}
     created = await client.post("/listings", json=body, headers=headers)
     lid = created.json()["id"]

@@ -12,7 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user
 from app.db import get_session
-from app.grid.bahria import BLOCKS_BY_PHASE, HOUSE_SIZES, PHASES
+from app.grid.bahria import (
+    AREA_PHASES,
+    AREAS_BY_PHASE,
+    GROUPS_BY_PHASE,
+    HOUSE_SIZES,
+    PHASES,
+    postal_code,
+)
 from app.listings.schemas import ListingCreate, ListingOut
 from app.listings.status import ListingStatus, can_transition
 from app.models.listing import Listing
@@ -34,17 +41,33 @@ async def grid_options() -> dict:
     box (and cannot drift from the seeded grid). Public: needed before sign-in."""
     return {
         "phases": list(PHASES),
-        "blocks_by_phase": {str(p): list(BLOCKS_BY_PHASE[p]) for p in PHASES},
+        # Only Phase 8 has an area layer; for other phases this is empty and the form should
+        # ask for street + house number alone.
+        "areas_by_phase": {
+            str(p): [a for a in AREAS_BY_PHASE[p] if a] for p in PHASES
+        },
+        # The same areas grouped for the picker — Phase 8 mixes lettered sectors, Safari
+        # Valley's named blocks and standalone schemes, which is unreadable as one flat list.
+        "groups_by_phase": {
+            str(p): [{"label": label, "areas": list(areas)}
+                     for label, areas in GROUPS_BY_PHASE[p] if areas]
+            for p in PHASES
+        },
+        "area_phases": list(AREA_PHASES),
+        "postal_codes": {str(p): postal_code(p) for p in PHASES},
         "sizes": list(HOUSE_SIZES),
     }
 
 
-async def _match_plot(session: AsyncSession, phase: int, sector: str, house_ref: str) -> Plot | None:
+async def _match_plot(
+    session: AsyncSession, phase: int, sector: str, street: str, house_ref: str
+) -> Plot | None:
     """Match owner-submitted address against the seeded Bahria grid."""
     return await session.scalar(
         select(Plot).where(
             Plot.phase == f"Phase {phase}",
             Plot.sector == sector,
+            Plot.street == street,
             Plot.house_ref == house_ref,
         )
     )
@@ -67,11 +90,12 @@ async def create_listing(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ListingOut:
-    plot = await _match_plot(session, body.phase, body.sector, body.house_ref)
+    plot = await _match_plot(session, body.phase, body.sector, body.street, body.house_ref)
     if plot is None:
+        where = f"{body.sector}, Phase {body.phase}" if body.sector else f"Phase {body.phase}"
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            f"No Bahria plot matches Phase {body.phase}, Sector {body.sector}, {body.house_ref}",
+            f"No Bahria plot matches House {body.house_ref}, {body.street}, {where}",
         )
 
     # Listing implies owner intent; a user can be both owner and tenant.
@@ -83,6 +107,7 @@ async def create_listing(
         plot_id=plot.id,
         phase=f"Phase {body.phase}",
         sector=body.sector,
+        street=body.street,
         house_ref=body.house_ref,
         size=body.size,
         rent=body.rent,

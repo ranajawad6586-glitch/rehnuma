@@ -18,12 +18,14 @@ class Listing(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
-    # Set once the submitted {phase, sector, house_ref} matches the seeded grid.
+    # Set once the submitted {phase, sector, street, house_ref} matches the seeded grid.
     plot_id: Mapped[int | None] = mapped_column(ForeignKey("plots.id"), index=True, nullable=True)
 
     # Address as submitted (kept for the record even before/after the plot match).
     phase: Mapped[str] = mapped_column(String(16), nullable=False)
-    sector: Mapped[str] = mapped_column(String(64), nullable=False)
+    # "" for phases with no area layer (everything except Phase 8).
+    sector: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    street: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     house_ref: Mapped[str] = mapped_column(String(32), nullable=False)
 
     size: Mapped[str] = mapped_column(String(16), nullable=False)  # see grid.bahria.HOUSE_SIZES

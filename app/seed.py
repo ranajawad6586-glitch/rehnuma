@@ -25,8 +25,8 @@ async def seed_plots(session: AsyncSession, *, force: bool = False) -> int:
         Plot(
             phase=p.phase,
             sector=p.sector,
-            house_ref=p.house_ref,
             street=p.street,
+            house_ref=p.house_ref,
             possession_ref=p.possession_ref,
             lat=p.lat,
             lng=p.lng,

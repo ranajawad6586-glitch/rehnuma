@@ -8,14 +8,25 @@ import type { Listing } from "@/lib/types";
 
 // The address space comes from the server (GET /listings/grid) so these choices can never
 // drift from the seeded Bahria grid — a mismatch here is rejected on submit.
-type Grid = { phases: number[]; blocks_by_phase: Record<string, string[]>; sizes: string[] };
-const FALLBACK_GRID: Grid = { phases: [8], blocks_by_phase: { "8": [] }, sizes: ["10-marla"] };
+type Group = { label: string; areas: string[] };
+type Grid = {
+  phases: number[];
+  areas_by_phase: Record<string, string[]>;
+  groups_by_phase: Record<string, Group[]>;
+  area_phases: number[];
+  postal_codes: Record<string, string>;
+  sizes: string[];
+};
+const FALLBACK_GRID: Grid = {
+  phases: [8], areas_by_phase: { "8": [] }, groups_by_phase: { "8": [] },
+  area_phases: [8], postal_codes: {}, sizes: ["10-marla"],
+};
 
 export default function ListPropertyPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [grid, setGrid] = useState<Grid | null>(null);
-  const [form, setForm] = useState({ phase: "8", sector: "", house_ref: "", size: "10-marla", rent: "", beds: "3", baths: "3" });
+  const [form, setForm] = useState({ phase: "4", sector: "", street: "", house_ref: "", size: "10-marla", rent: "", beds: "3", baths: "3" });
   const [pending, setPending] = useState<File[]>([]); // photos chosen before the listing exists
   const [created, setCreated] = useState<Listing | null>(null);
   const [error, setError] = useState("");
@@ -29,20 +40,31 @@ export default function ListPropertyPage() {
     api<Grid>("/listings/grid", { auth: false })
       .then((g) => {
         setGrid(g);
-        // Blocks are per-phase, so seed the selection with a valid pair.
-        setForm((f) => ({ ...f, sector: g.blocks_by_phase[f.phase]?.[0] ?? "" }));
+        // Areas are per-phase and most phases have none, so seed a valid pair.
+        setForm((f) => ({ ...f, sector: g.areas_by_phase[f.phase]?.[0] ?? "" }));
       })
       .catch(() => setGrid(FALLBACK_GRID));
   }, []);
 
   const g = grid ?? FALLBACK_GRID;
-  const blocks = g.blocks_by_phase[form.phase] ?? [];
+  const areas = g.areas_by_phase[form.phase] ?? [];
+  const groups = g.groups_by_phase[form.phase] ?? [];
+  const hasAreas = areas.length > 0;
 
-  // Changing phase must reset the block: "Umer Block" exists only in Phase 8.
+  // Changing phase must reset the area: only Phase 8 has them, and "Umer Block" is Phase 8 only.
   function setPhase(v: string) {
-    const next = g.blocks_by_phase[v] ?? [];
+    const next = g.areas_by_phase[v] ?? [];
     setForm((f) => ({ ...f, phase: v, sector: next.includes(f.sector) ? f.sector : (next[0] ?? "") }));
   }
+
+  // Show the owner the address they are declaring, as a resident would write it.
+  const addressPreview = [
+    form.house_ref && `House ${form.house_ref}`,
+    form.street && (/^\d/.test(form.street.trim()) ? `Street ${form.street.trim()}` : form.street.trim()),
+    hasAreas ? form.sector : "",
+    `Phase ${form.phase}`,
+    "Bahria Town, Rawalpindi",
+  ].filter(Boolean).join(", ");
 
   async function uploadTo(listingId: number, files: File[]): Promise<Listing> {
     const fd = new FormData();
@@ -68,7 +90,8 @@ export default function ListPropertyPage() {
         method: "POST",
         body: {
           phase: Number(form.phase),
-          sector: form.sector,
+          sector: hasAreas ? form.sector : "",
+          street: form.street,
           house_ref: form.house_ref,
           size: form.size,
           rent: Number(form.rent),
@@ -139,15 +162,37 @@ export default function ListPropertyPage() {
             {g.phases.map((p) => <option key={p} value={p}>Phase {p}</option>)}
           </select>
         </div>
+        {hasAreas && (
+          <div>
+            <label className="label">Sector / Block</label>
+            <select className="input" value={form.sector} onChange={(e) => set("sector", e.target.value)}>
+              {groups.length > 1
+                ? groups.map((gr) => (
+                    <optgroup key={gr.label} label={gr.label}>
+                      {gr.areas.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </optgroup>
+                  ))
+                : areas.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+        )}
         <div>
-          <label className="label">Block / Sector</label>
-          <select className="input" value={form.sector} onChange={(e) => set("sector", e.target.value)}>
-            {blocks.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
+          <label className="label">Street</label>
+          <input className="input" value={form.street} placeholder="e.g. 13" onChange={(e) => set("street", e.target.value)} />
         </div>
         <div>
           <label className="label">House number</label>
           <input className="input" value={form.house_ref} placeholder="e.g. 129" onChange={(e) => set("house_ref", e.target.value)} />
+          {!hasAreas && (
+            <p className="mt-1 text-xs opacity-60">Phase {form.phase} has no sectors — street and house number are the address.</p>
+          )}
+        </div>
+        <div className="sm:col-span-2 rounded-lg border border-moss/20 bg-paper/60 px-3 py-2">
+          <span className="label">Address we will verify</span>
+          <p className="font-medium">{addressPreview}</p>
+          {g.postal_codes[form.phase] && (
+            <p className="text-xs opacity-60">Postal code {g.postal_codes[form.phase]}</p>
+          )}
         </div>
         <div>
           <label className="label">Size</label>

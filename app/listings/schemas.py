@@ -1,23 +1,25 @@
 """Request/response models for listings."""
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.grid.bahria import BLOCKS_BY_PHASE, HOUSE_SIZES, PHASES, SECTORS
+from app.grid.bahria import AREA_PHASES, AREAS, AREAS_BY_PHASE, HOUSE_SIZES, PHASES
 from app.models.listing import Listing
 
 _PHASES = set(PHASES)
-_SECTORS = set(SECTORS)
 _SIZES = set(HOUSE_SIZES)
-# Block names are case-insensitively resolvable back to their canonical spelling.
-_CANONICAL_BLOCK = {b.casefold(): b for b in SECTORS}
+# Area names are case-insensitively resolvable back to their canonical spelling.
+_CANONICAL_AREA = {a.casefold(): a for a in AREAS}
 
 
 class ListingCreate(BaseModel):
     phase: int = Field(..., description="Bahria phase 1-8", examples=[8])
-    sector: str = Field(..., description="Block/sector name", examples=["Umer Block"])
+    # Only Phase 8 has an area layer; elsewhere the address is street + house number.
+    sector: str = Field("", description="Sector/block — Phase 8 only", examples=["Umer Block"])
+    street: str = Field(..., description="Street number or name", examples=["Street 13"])
     house_ref: str = Field(..., description="House number as written", examples=["129"])
     size: str = Field(..., examples=["10-marla"])
     rent: int = Field(..., gt=0, description="PKR per month")
@@ -35,10 +37,23 @@ class ListingCreate(BaseModel):
     @field_validator("sector")
     @classmethod
     def _sector(cls, v: str) -> str:
-        canonical = _CANONICAL_BLOCK.get(v.strip().casefold())
+        v = v.strip()
+        if not v:
+            return ""
+        canonical = _CANONICAL_AREA.get(v.casefold())
         if canonical is None:
-            raise ValueError(f"sector must be one of {sorted(_SECTORS)}")
+            raise ValueError(f"sector must be one of {sorted(AREAS)}")
         return canonical
+
+    @field_validator("street")
+    @classmethod
+    def _street(cls, v: str) -> str:
+        # Accept "13", "Street 13", "St 13", "street-13" -> "Street 13".
+        v = " ".join(v.replace("-", " ").split())
+        m = re.fullmatch(r"(?:street|st\.?|gali)?\s*([0-9]{1,4}[A-Za-z]?)", v, re.I)
+        if not m:
+            raise ValueError("street must be a number, e.g. 13 or 'Street 13'")
+        return f"Street {m.group(1).upper()}"
 
     @field_validator("size")
     @classmethod
@@ -59,13 +74,22 @@ class ListingCreate(BaseModel):
         return v.split("-", 1)[0].strip() if v[:1].isdigit() else v
 
     @model_validator(mode="after")
-    def _block_belongs_to_phase(self) -> "ListingCreate":
-        # "Umer Block" is real, but only in Phase 8 — the pair has to be valid, not just each
-        # half, or the grid lookup fails later with a less useful message.
-        allowed = BLOCKS_BY_PHASE[self.phase]
+    def _area_matches_phase(self) -> "ListingCreate":
+        # An area is required in Phase 8 and meaningless elsewhere; and "Umer Block" is real
+        # but only in Phase 8. Checking the pair gives a useful message instead of a bare
+        # "no plot matches" later.
+        allowed = AREAS_BY_PHASE[self.phase]
+        if self.phase not in AREA_PHASES:
+            if self.sector:
+                raise ValueError(
+                    f"Phase {self.phase} has no sectors — give only street and house number"
+                )
+            return self
+        if not self.sector:
+            raise ValueError(f"Phase {self.phase} requires a sector, one of {list(allowed)}")
         if self.sector not in allowed:
             raise ValueError(
-                f"Phase {self.phase} has no {self.sector!r}; its blocks are {list(allowed)}"
+                f"Phase {self.phase} has no {self.sector!r}; its sectors are {list(allowed)}"
             )
         return self
 
@@ -76,6 +100,7 @@ class ListingOut(BaseModel):
     plot_id: int | None
     phase: str
     sector: str
+    street: str
     house_ref: str
     size: str
     rent: int
@@ -93,6 +118,7 @@ class ListingOut(BaseModel):
             plot_id=listing.plot_id,
             phase=listing.phase,
             sector=listing.sector,
+            street=listing.street,
             house_ref=listing.house_ref,
             size=listing.size,
             rent=listing.rent,
