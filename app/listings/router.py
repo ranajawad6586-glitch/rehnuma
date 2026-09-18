@@ -1,8 +1,10 @@
 """Listing endpoints.
 
-Owner submits a listing -> {phase, sector, house_ref} is matched against the seeded Bahria
-grid (rule 2: no grid match, no listing). Publishing to LIVE additionally requires the owner
-to be CNIC+OTP verified. Tenant-facing reads only ever return LIVE listings.
+Owner submits a listing -> the address is checked for plausibility (app.grid.bahria) and
+recorded in `plots`, one row per distinct address. This is a format/range check, NOT proof of
+possession: Bahria's real register is not public. Publishing to LIVE additionally requires the
+owner to be CNIC+OTP verified, which is where trust in the person actually comes from.
+Tenant-facing reads only ever return LIVE listings.
 """
 import uuid
 
@@ -15,9 +17,11 @@ from app.db import get_session
 from app.grid.bahria import (
     AREA_PHASES,
     AREAS_BY_PHASE,
+    BOUNDS_BY_PHASE,
     GROUPS_BY_PHASE,
     HOUSE_SIZES,
     PHASES,
+    check_address,
     postal_code,
 )
 from app.listings.schemas import ListingCreate, ListingOut
@@ -55,15 +59,25 @@ async def grid_options() -> dict:
         },
         "area_phases": list(AREA_PHASES),
         "postal_codes": {str(p): postal_code(p) for p in PHASES},
+        "bounds_by_phase": {
+            str(p): {"max_street": BOUNDS_BY_PHASE[p].max_street,
+                     "max_house": BOUNDS_BY_PHASE[p].max_house}
+            for p in PHASES
+        },
         "sizes": list(HOUSE_SIZES),
     }
 
 
-async def _match_plot(
+async def _claim_plot(
     session: AsyncSession, phase: int, sector: str, street: str, house_ref: str
-) -> Plot | None:
-    """Match owner-submitted address against the seeded Bahria grid."""
-    return await session.scalar(
+) -> Plot:
+    """Return the `plots` row for this address, creating it on first claim.
+
+    There is no register to look the address up in, so the row records that someone has
+    claimed it. The unique constraint keeps one row per address, which is also what stops two
+    listings pointing at the same house.
+    """
+    existing = await session.scalar(
         select(Plot).where(
             Plot.phase == f"Phase {phase}",
             Plot.sector == sector,
@@ -71,6 +85,12 @@ async def _match_plot(
             Plot.house_ref == house_ref,
         )
     )
+    if existing is not None:
+        return existing
+    plot = Plot(phase=f"Phase {phase}", sector=sector, street=street, house_ref=house_ref)
+    session.add(plot)
+    await session.flush()   # need plot.id for the listing FK
+    return plot
 
 
 async def _owned_listing(listing_id: int, user: User, session: AsyncSession) -> Listing:
@@ -90,13 +110,13 @@ async def create_listing(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ListingOut:
-    plot = await _match_plot(session, body.phase, body.sector, body.street, body.house_ref)
-    if plot is None:
-        where = f"{body.sector}, Phase {body.phase}" if body.sector else f"Phase {body.phase}"
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            f"No Bahria plot matches House {body.house_ref}, {body.street}, {where}",
-        )
+    reason = check_address(body.phase, body.sector, body.street_no, body.house_no)
+    if reason is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, reason)
+
+    plot = await _claim_plot(
+        session, body.phase, body.sector, body.street, body.house_ref
+    )
 
     # Listing implies owner intent; a user can be both owner and tenant.
     user.can_own = True

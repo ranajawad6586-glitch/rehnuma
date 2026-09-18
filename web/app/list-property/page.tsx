@@ -9,17 +9,19 @@ import type { Listing } from "@/lib/types";
 // The address space comes from the server (GET /listings/grid) so these choices can never
 // drift from the seeded Bahria grid — a mismatch here is rejected on submit.
 type Group = { label: string; areas: string[] };
+type Bounds = { max_street: number; max_house: number };
 type Grid = {
   phases: number[];
   areas_by_phase: Record<string, string[]>;
   groups_by_phase: Record<string, Group[]>;
   area_phases: number[];
   postal_codes: Record<string, string>;
+  bounds_by_phase: Record<string, Bounds>;
   sizes: string[];
 };
 const FALLBACK_GRID: Grid = {
   phases: [8], areas_by_phase: { "8": [] }, groups_by_phase: { "8": [] },
-  area_phases: [8], postal_codes: {}, sizes: ["10-marla"],
+  area_phases: [8], postal_codes: {}, bounds_by_phase: {}, sizes: ["10-marla"],
 };
 
 export default function ListPropertyPage() {
@@ -188,11 +190,15 @@ export default function ListPropertyPage() {
           )}
         </div>
         <div className="sm:col-span-2 rounded-lg border border-moss/20 bg-paper/60 px-3 py-2">
-          <span className="label">Address we will verify</span>
+          <span className="label">Your property address</span>
           <p className="font-medium">{addressPreview}</p>
           {g.postal_codes[form.phase] && (
             <p className="text-xs opacity-60">Postal code {g.postal_codes[form.phase]}</p>
           )}
+          <p className="mt-1 text-xs opacity-60">
+            We check this address is well-formed for Bahria Town. We can&apos;t confirm ownership
+            from it — that comes from your CNIC and phone verification.
+          </p>
         </div>
         <div>
           <label className="label">Size</label>

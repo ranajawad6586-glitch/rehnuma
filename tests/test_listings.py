@@ -29,7 +29,7 @@ async def _make_owner(client, phone_e164: str, *, cnic: str | None = None) -> di
 
 
 def _listing_body(house_ref: str, rent: int) -> dict:
-    # Phase 4 / Sector C seeds houses 481..520 -> "1".."40".
+    # Phase 4 has no sector layer: street + house number is the whole address.
     return {
         "phase": 4,
         "sector": "",
@@ -43,20 +43,49 @@ def _listing_body(house_ref: str, rent: int) -> dict:
     }
 
 
-async def test_create_matches_grid(client, redis_up, seeded):
+async def test_create_accepts_a_real_looking_address_and_claims_the_plot(client, redis_up, seeded):
     headers = await _make_owner(client, "+923002220001", cnic="61101-2220001-1")
-    resp = await client.post("/listings", json=_listing_body("20", 90001), headers=headers)
+    # A genuine resident address; the old synthetic grid capped house numbers at 40.
+    resp = await client.post("/listings", json=_listing_body("929", 90001), headers=headers)
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["status"] == "GRID_MATCHED"
-    assert body["plot_id"] is not None
+    assert body["plot_id"] is not None, "the address should be recorded in plots"
+    assert body["house_ref"] == "929" and body["street"] == "Street 7"
 
 
-async def test_create_rejects_unknown_plot(client, redis_up, seeded):
+async def test_same_address_twice_reuses_one_plot_row(client, redis_up, seeded):
+    a = await _make_owner(client, "+923002220011", cnic="61101-2220011-1")
+    b = await _make_owner(client, "+923002220012", cnic="61101-2220012-1")
+    first = await client.post("/listings", json=_listing_body("515", 90011), headers=a)
+    second = await client.post("/listings", json=_listing_body("515", 90012), headers=b)
+    assert first.status_code == 201 and second.status_code == 201, second.text
+    # One address -> one plots row, so duplicate claims are detectable.
+    assert first.json()["plot_id"] == second.json()["plot_id"]
+
+
+async def test_create_rejects_an_implausible_address(client, redis_up, seeded):
     headers = await _make_owner(client, "+923002220002", cnic="61101-2220002-1")
-    # House 999 is outside the seeded Phase 4/Sector C range -> no grid match.
-    resp = await client.post("/listings", json=_listing_body("999", 90002), headers=headers)
+    # Well past any plausible Bahria house number.
+    resp = await client.post("/listings", json=_listing_body("99999", 90002), headers=headers)
     assert resp.status_code == 422
+    assert "looks wrong" in resp.text
+
+
+async def test_create_rejects_a_sector_in_a_phase_without_one(client, redis_up, seeded):
+    headers = await _make_owner(client, "+923002220013", cnic="61101-2220013-1")
+    body = _listing_body("300", 90013) | {"sector": "Umer Block"}
+    resp = await client.post("/listings", json=body, headers=headers)
+    assert resp.status_code == 422
+    assert "no sectors" in resp.text
+
+
+async def test_create_requires_a_sector_in_phase_8(client, redis_up, seeded):
+    headers = await _make_owner(client, "+923002220014", cnic="61101-2220014-1")
+    body = _listing_body("300", 90014) | {"phase": 8}
+    resp = await client.post("/listings", json=body, headers=headers)
+    assert resp.status_code == 422
+    assert "requires a sector" in resp.text
 
 
 async def test_publish_requires_cnic_then_goes_live_and_visible(client, redis_up, seeded):

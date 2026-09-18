@@ -21,7 +21,8 @@ class Settings(BaseSettings):
         # accepts neither. See app/dburl.py.
         return normalize_database_url(v)
 
-    # Seed the Bahria grid on startup if the plots table is empty.
+    # Retired: there is no grid to seed (see app/grid/bahria). Kept so existing deployments
+    # that still set AUTO_SEED do not fail to boot on an unknown setting.
     auto_seed: bool = False
 
     app_name: str = "RehnumaRent"

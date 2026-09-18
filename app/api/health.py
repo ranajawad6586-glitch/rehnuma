@@ -12,7 +12,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 async def health(session: AsyncSession = Depends(get_session)) -> dict:
-    """Liveness + DB check and seeded-grid count. Never raises — reports status."""
+    """Liveness + DB check and the number of claimed addresses. Never raises."""
     db_up = False
     plots = None
     try:
@@ -27,5 +27,6 @@ async def health(session: AsyncSession = Depends(get_session)) -> dict:
         "status": status,
         "app": get_settings().app_name,
         "db": "up" if db_up else "down",
-        "plots_seeded": plots,
+        # Addresses claimed by owners so far — not a seeded register (see app/grid/bahria).
+        "plots_known": plots,
     }

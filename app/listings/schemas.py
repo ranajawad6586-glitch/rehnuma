@@ -4,9 +4,9 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
-from app.grid.bahria import AREA_PHASES, AREAS, AREAS_BY_PHASE, HOUSE_SIZES, PHASES
+from app.grid.bahria import AREAS, HOUSE_SIZES, PHASES
 from app.models.listing import Listing
 
 _PHASES = set(PHASES)
@@ -48,12 +48,13 @@ class ListingCreate(BaseModel):
     @field_validator("street")
     @classmethod
     def _street(cls, v: str) -> str:
-        # Accept "13", "Street 13", "St 13", "street-13" -> "Street 13".
+        # Accept "13", "Street 13", "St 13", "street-13" -> "Street 13". Numeric only, so
+        # street_no below can never fail.
         v = " ".join(v.replace("-", " ").split())
-        m = re.fullmatch(r"(?:street|st\.?|gali)?\s*([0-9]{1,4}[A-Za-z]?)", v, re.I)
+        m = re.fullmatch(r"(?:street|st\.?|gali)?\s*([0-9]{1,5})", v, re.I)
         if not m:
             raise ValueError("street must be a number, e.g. 13 or 'Street 13'")
-        return f"Street {m.group(1).upper()}"
+        return f"Street {int(m.group(1))}"
 
     @field_validator("size")
     @classmethod
@@ -65,33 +66,20 @@ class ListingCreate(BaseModel):
     @field_validator("house_ref")
     @classmethod
     def _house_ref(cls, v: str) -> str:
-        v = v.strip().upper()
-        # Tolerate "House 129" / "#129" and the old composite "129-C" spelling.
-        for prefix in ("HOUSE NO.", "HOUSE NO", "HOUSE", "#"):
-            if v.startswith(prefix):
-                v = v[len(prefix):].strip()
-                break
-        return v.split("-", 1)[0].strip() if v[:1].isdigit() else v
+        # Tolerate "House 929", "House No. 929", "#929" and the retired "929-C" spelling.
+        v = " ".join(v.strip().upper().replace("-", " ").split())
+        m = re.fullmatch(r"(?:HOUSE\s*NO\.?|HOUSE|#)?\s*([0-9]{1,6})(?:\s+[A-Z])?", v)
+        if not m:
+            raise ValueError("house number must be a number, e.g. 929")
+        return str(int(m.group(1)))
 
-    @model_validator(mode="after")
-    def _area_matches_phase(self) -> "ListingCreate":
-        # An area is required in Phase 8 and meaningless elsewhere; and "Umer Block" is real
-        # but only in Phase 8. Checking the pair gives a useful message instead of a bare
-        # "no plot matches" later.
-        allowed = AREAS_BY_PHASE[self.phase]
-        if self.phase not in AREA_PHASES:
-            if self.sector:
-                raise ValueError(
-                    f"Phase {self.phase} has no sectors — give only street and house number"
-                )
-            return self
-        if not self.sector:
-            raise ValueError(f"Phase {self.phase} requires a sector, one of {list(allowed)}")
-        if self.sector not in allowed:
-            raise ValueError(
-                f"Phase {self.phase} has no {self.sector!r}; its sectors are {list(allowed)}"
-            )
-        return self
+    @property
+    def street_no(self) -> int:
+        return int(self.street.split()[-1])
+
+    @property
+    def house_no(self) -> int:
+        return int(self.house_ref)
 
 
 class ListingOut(BaseModel):

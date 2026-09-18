@@ -16,4 +16,4 @@ async def test_health_reports_db_and_grid(client):
     body = resp.json()
     assert body["status"] == "ok"
     assert body["db"] == "up"
-    assert "plots_seeded" in body
+    assert "plots_known" in body

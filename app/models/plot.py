@@ -28,10 +28,10 @@ class Plot(Base):
     # Street the house sits on, e.g. "Street 13". Part of the address, not decoration.
     street: Mapped[str] = mapped_column(String(32), index=True, default="")
     house_ref: Mapped[str] = mapped_column(String(32), index=True)
-    # Possession reference seeded with the grid; used to confirm a real plot exists.
-    possession_ref: Mapped[str] = mapped_column(String(64))
-    lat: Mapped[float] = mapped_column(Float, nullable=False)
-    lng: Mapped[float] = mapped_column(Float, nullable=False)
+    # Only fillable from a real possession register, which the MVP does not have.
+    possession_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     @property
     def address(self) -> str:

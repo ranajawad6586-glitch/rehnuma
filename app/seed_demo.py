@@ -21,12 +21,12 @@ from app.security import encrypt_phone, hash_identifier
 # they match the seeded grid the same way an owner's submission would.
 _DEMO = [
     ("+923001110001", "Bilal Khan", "61101-1110001-1", [
-        {"phase": "Phase 8", "sector": "Umer Block", "street": "Street 4", "house_ref": "12", "size": "7-marla", "rent": 145000, "beds": 3, "baths": 3},
-        {"phase": "Phase 4", "sector": "", "street": "Street 22", "house_ref": "20", "size": "10-marla", "rent": 185000, "beds": 4, "baths": 4},
+        {"phase": "Phase 8", "sector": "Umer Block", "street": "Street 7", "house_ref": "412", "size": "7-marla", "rent": 145000, "beds": 3, "baths": 3},
+        {"phase": "Phase 4", "sector": "", "street": "Street 22", "house_ref": "738", "size": "10-marla", "rent": 185000, "beds": 4, "baths": 4},
     ]),
     ("+923001110002", "Sana Ahmed", "61101-1110002-1", [
-        {"phase": "Phase 8", "sector": "Sector E-1", "street": "Street 9", "house_ref": "15", "size": "1-kanal", "rent": 420000, "beds": 5, "baths": 5},
-        {"phase": "Phase 2", "sector": "", "street": "Street 31", "house_ref": "8", "size": "10-marla", "rent": 165000, "beds": 3, "baths": 3},
+        {"phase": "Phase 8", "sector": "Sector E-1", "street": "Street 12", "house_ref": "96", "size": "1-kanal", "rent": 420000, "beds": 5, "baths": 5},
+        {"phase": "Phase 2", "sector": "", "street": "Street 31", "house_ref": "1204", "size": "10-marla", "rent": 165000, "beds": 3, "baths": 3},
     ]),
 ]
 
@@ -54,7 +54,10 @@ async def seed_demo() -> int:
                     )
                 )
                 if plot is None:
-                    continue  # skip if the demo ref isn't in the seeded grid
+                    plot = Plot(phase=spec["phase"], sector=spec["sector"],
+                                street=spec["street"], house_ref=spec["house_ref"])
+                    session.add(plot)
+                    await session.flush()
                 # Idempotent per plot: don't duplicate a listing for the same plot+owner.
                 dup = await session.scalar(
                     select(Listing).where(Listing.plot_id == plot.id, Listing.owner_id == owner.id)

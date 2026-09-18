@@ -1,21 +1,21 @@
-"""Reference plot grid for Bahria Town Rawalpindi/Islamabad.
+"""Bahria Town address space: what counts as a well-formed address.
 
-The real possession register is not public, so this generates a plausible grid over the
-society's **actual address space**. Two things are real here, and one is not:
+**This is a plausibility check, not a possession check.** Bahria Town's real plot register is
+not public, so the app cannot confirm that a given house exists, let alone who owns it. An
+earlier design pre-seeded a synthetic grid of every plot and matched against it, which
+rejected essentially every genuine resident: the numbers were invented, so a real address like
+"House 929, Street 41, Phase 3" was absent by construction.
 
-- The addressing *shape* is real. Phases 1-7 are addressed "House 123, Street 45, Phase 4" —
-  they have no block or sector layer (the postal service treats Phases 1-4 as a single area,
-  46220). Only Phase 8 is subdivided, into lettered sectors plus named schemes, giving
-  "House 12, Street 5, Umer Block, Phase 8".
-- The Phase 8 sector and block names are real, taken from the society's phase maps.
-- The street and house *numbers* are synthetic. A given real house may not be present. Only
-  importing the genuine register fixes that.
+So verification is split honestly:
 
-Earlier revisions invented a block layer for every phase and numbered houses from a
-phase-derived formula, so a resident's real address never matched.
+- *This module* validates the shape and range of an address — a real phase, a sector only
+  where sectors exist, and street/house numbers inside plausible bounds.
+- Trust in the person comes from CNIC + phone OTP (M2), not from the address.
 
-Pure stdlib + deterministic — no third-party imports, no randomness — so it is fully
-unit-testable without a database. Re-running yields byte-identical rows (idempotent seed).
+The bounds below are deliberately generous placeholders, sized so no plausible real address is
+refused. They are not authoritative. Replace them with per-phase figures from someone who
+knows the society (or the real register, if it is ever obtainable) — that is the only way this
+check becomes meaningful rather than merely permissive.
 """
 from __future__ import annotations
 
@@ -23,7 +23,8 @@ from dataclasses import dataclass
 
 PHASES: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8)
 
-# Only Phase 8 carries a sector/block layer; elsewhere the street is the subdivision.
+# Only Phase 8 carries a sector/block layer. Phases 1-7 are addressed "House 123, Street 45,
+# Phase 4" — Pakistan Post treats Phases 1-4 as one area (46220), with no block subdivision.
 AREA_PHASES: tuple[int, ...] = (8,)
 
 _SAFARI_VALLEY = (
@@ -41,13 +42,12 @@ _AWAMI_VILLAS = ("Awami Villas 1", "Awami Villas 2", "Awami Villas 3",
                  "Awami Villas 5", "Awami Villas 6")
 _OTHER_SCHEMES = ("Overseas Enclave", "Bahria Orchard", "Rose Garden", "Bahria Heights")
 
-# "" means the phase has no area layer — the address is just street + house number.
+# "" means the phase has no sector layer.
 NO_AREA = ""
 
 AREAS_BY_PHASE: dict[int, tuple[str, ...]] = {p: (NO_AREA,) for p in PHASES}
 AREAS_BY_PHASE[8] = _PHASE_8_SECTORS + _SAFARI_VALLEY + _AWAMI_VILLAS + _OTHER_SCHEMES
 
-# Every real area name, for validation and the owner form.
 AREAS: tuple[str, ...] = tuple(
     dict.fromkeys(a for areas in AREAS_BY_PHASE.values() for a in areas if a)
 )
@@ -63,100 +63,57 @@ GROUPS_BY_PHASE: dict[int, tuple[tuple[str, tuple[str, ...]], ...]] = {
     for p in PHASES
 }
 
-# Plausible density. Phases 1-7 are whole phases, so they carry many more streets than a
-# single Phase 8 sector does.
-STREETS_PER_PHASE: int = 40
-STREETS_PER_AREA: int = 8
-HOUSES_PER_STREET: int = 40
+
+@dataclass(frozen=True)
+class Bounds:
+    """Highest plausible street and house number for a phase."""
+    max_street: int
+    max_house: int
+
+
+# PLACEHOLDER bounds — generous on purpose so real addresses are not refused. Phase 8's
+# sectors are individually smaller than a whole older phase, but the ceiling is kept high
+# because residents also write whole-phase numbering.
+_DEFAULT_BOUNDS = Bounds(max_street=150, max_house=3000)
+BOUNDS_BY_PHASE: dict[int, Bounds] = {p: _DEFAULT_BOUNDS for p in PHASES}
 
 # Plot categories actually marketed in Bahria Town. CLAUDE.md s.0 names 5-marla / 10-marla /
 # 1-kanal as the standard trio; 7-marla (dominant in Safari Valley), 8-marla and 2-kanal are
 # equally real and are accepted so owners are not forced to mis-declare.
 HOUSE_SIZES: tuple[str, ...] = ("5-marla", "7-marla", "8-marla", "10-marla", "1-kanal", "2-kanal")
 
-# Pakistan Post: Phases 1-4 share 46220; Phases 5-8 use 46620.
+
 def postal_code(phase: int) -> str:
+    """Pakistan Post: Phases 1-4 share 46220; Phases 5-8 use 46620."""
     return "46220" if phase <= 4 else "46620"
 
 
-BAHRIA_CENTER: tuple[float, float] = (33.5286, 73.0879)
-_PHASE_STEP = 0.012
-_AREA_STEP = 0.004
-_STREET_STEP = 0.0004
-_HOUSE_STEP = 0.00008
+def format_address(phase: int, sector: str, street: str, house_ref: str) -> str:
+    """The address the way a resident writes it (sector omitted where none exists)."""
+    parts = [f"House {house_ref}", street]
+    if sector:
+        parts.append(sector)
+    parts.append(f"Phase {phase}")
+    return ", ".join(p for p in parts if p)
 
 
-@dataclass(frozen=True)
-class GridPlot:
-    phase: str          # e.g. "Phase 8"
-    sector: str         # e.g. "Umer Block"; "" for phases with no area layer
-    street: str         # e.g. "Street 13"
-    house_ref: str      # the house number as written, e.g. "129"
-    possession_ref: str
-    size: str
-    lat: float
-    lng: float
+def check_address(phase: int, sector: str, street_no: int, house_no: int) -> str | None:
+    """Return None if the address is plausible, else a reason the owner can act on."""
+    if phase not in PHASES:
+        return f"Phase {phase} is not part of Bahria Town; phases are {list(PHASES)}"
 
-    @property
-    def address(self) -> str:
-        """The address the way a resident writes it."""
-        parts = [f"House {self.house_ref}", self.street]
-        if self.sector:
-            parts.append(self.sector)
-        parts.append(self.phase)
-        return ", ".join(parts)
+    allowed = tuple(a for a in AREAS_BY_PHASE[phase] if a)
+    if phase in AREA_PHASES:
+        if not sector:
+            return f"Phase {phase} requires a sector, one of {list(allowed)}"
+        if sector not in allowed:
+            return f"Phase {phase} has no {sector!r}; its sectors are {list(allowed)}"
+    elif sector:
+        return f"Phase {phase} has no sectors — give only street and house number"
 
-    @property
-    def wkt(self) -> str:
-        """WKT point for PostGIS (lng lat order)."""
-        return f"POINT({self.lng:.6f} {self.lat:.6f})"
-
-
-def _slug(area: str) -> str:
-    return area.upper().replace(" ", "-") if area else "NA"
-
-
-def _size_for(phase: int, area: str, street: int, house: int) -> str:
-    """Safari Valley is a documented 5/7-marla zone; elsewhere cycle the categories."""
-    if area in _SAFARI_VALLEY:
-        return ("5-marla", "7-marla")[house % 2]
-    return HOUSE_SIZES[(phase + street + house) % len(HOUSE_SIZES)]
-
-
-def streets_for(phase: int) -> int:
-    return STREETS_PER_AREA if phase in AREA_PHASES else STREETS_PER_PHASE
-
-
-def generate_grid() -> list[GridPlot]:
-    """Generate the full Bahria reference grid, deterministically ordered."""
-    plots: list[GridPlot] = []
-    base_lat, base_lng = BAHRIA_CENTER
-    for phase in PHASES:
-        for a_idx, area in enumerate(AREAS_BY_PHASE[phase]):
-            for s in range(streets_for(phase)):
-                street_no = s + 1
-                for h in range(HOUSES_PER_STREET):
-                    house = h + 1          # house numbers restart on every street
-                    plots.append(
-                        GridPlot(
-                            phase=f"Phase {phase}",
-                            sector=area,
-                            street=f"Street {street_no}",
-                            house_ref=str(house),
-                            possession_ref=(
-                                f"BT-P{phase}-{_slug(area)}-S{street_no:03d}-{house:03d}"
-                            ),
-                            size=_size_for(phase, area, street_no, house),
-                            lat=base_lat + phase * _PHASE_STEP + a_idx * _AREA_STEP
-                            + s * _STREET_STEP + h * _HOUSE_STEP,
-                            lng=base_lng + a_idx * _AREA_STEP - s * _STREET_STEP,
-                        )
-                    )
-    return plots
-
-
-def grid_size() -> int:
-    """Expected number of plots, without generating them."""
-    return sum(
-        len(AREAS_BY_PHASE[p]) * streets_for(p) * HOUSES_PER_STREET for p in PHASES
-    )
+    bounds = BOUNDS_BY_PHASE[phase]
+    if not 1 <= street_no <= bounds.max_street:
+        return f"Street {street_no} looks wrong for Phase {phase} (expected 1-{bounds.max_street})"
+    if not 1 <= house_no <= bounds.max_house:
+        return f"House {house_no} looks wrong for Phase {phase} (expected 1-{bounds.max_house})"
+    return None

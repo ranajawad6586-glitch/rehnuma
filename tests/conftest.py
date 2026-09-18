@@ -57,10 +57,12 @@ async def _db():
 
 @pytest_asyncio.fixture
 async def seeded(_db):
-    """Ensure the Bahria grid is present (idempotent) for tests that match plots."""
-    from app.seed import ensure_seeded
+    """No-op kept for readability at call sites.
 
-    await ensure_seeded()
+    There is no grid to seed any more: `plots` rows are created when an owner claims an
+    address, so a test only needs the schema (`_db`). Retained so the tests that conceptually
+    depend on the address space still say so.
+    """
     yield
 
 

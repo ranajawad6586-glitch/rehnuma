@@ -21,17 +21,12 @@ from app.redis_client import close_redis
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
-    # Apply Alembic migrations to head (creates PostGIS + tables on a fresh DB, applies
-    # schema changes on an existing one — no more create_all drift). Runs in a worker
-    # thread because the async migration env calls asyncio.run.
+    # Apply Alembic migrations to head (creates tables on a fresh DB, applies schema changes
+    # on an existing one — no create_all drift). Runs in a worker thread because the async
+    # migration env calls asyncio.run.
     await asyncio.to_thread(run_migrations_sync)
-    if settings.auto_seed:
-        from app.seed import ensure_seeded
-
-        inserted = await ensure_seeded()
-        if inserted:
-            print(f"[startup] auto-seeded {inserted} Bahria plots")
+    # Nothing to seed: `plots` records addresses as owners claim them. There is no register
+    # to pre-load, and the synthetic grid that used to be seeded here rejected real addresses.
     yield
     await close_redis()
     await dispose_engine()
