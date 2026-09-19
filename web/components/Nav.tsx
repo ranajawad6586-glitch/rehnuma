@@ -9,11 +9,10 @@ export function Nav() {
   return (
     <header className="border-b border-paper-deep bg-paper/80 backdrop-blur sticky top-0 z-20">
       <nav className="mx-auto max-w-5xl px-4 py-3 flex items-center gap-5">
-        <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold text-moss">
-          {/* Monogram only: the full lock-up's tagline is illegible at nav size. */}
-          <Image src="/logo-mark.png" alt="" width={32} height={32} priority
-                 className="h-8 w-8 rounded-md" />
-          <span>Rehnuma<span className="text-clay">Rent</span></span>
+        {/* The monogram stands alone, so it carries the link's accessible name. */}
+        <Link href="/" className="flex items-center" aria-label="RehnumaRent home">
+          <Image src="/logo-mark.png" alt="RehnumaRent" width={40} height={40} priority
+                 className="h-10 w-10 rounded-lg" />
         </Link>
         <div className="flex-1" />
         <Link href="/" className="text-sm text-ink/70 hover:text-moss">Listings</Link>
