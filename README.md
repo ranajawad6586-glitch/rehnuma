@@ -8,17 +8,25 @@ pipeline. See [CLAUDE.md](CLAUDE.md) for the full spec and non-negotiable rules.
 
 | | |
 |---|---|
-| App | https://rehnumarent.slender-group.workers.dev |
+| App | https://rehnumarent.ranajawad6586.workers.dev |
 | API | https://rehnumarent-api.onrender.com |
 
-Frontend on Cloudflare Workers, backend on Render (free), Postgres on Neon, Redis on Upstash.
-See [DEPLOY-CLOUDFLARE.md](DEPLOY-CLOUDFLARE.md). Two caveats on the current deployment:
+Frontend on Cloudflare Workers (the owner's own account, so the URL is permanent), backend on
+Render's free tier, Postgres on Neon, Redis on Upstash. See [DEPLOY-CLOUDFLARE.md](DEPLOY-CLOUDFLARE.md).
 
-- The Worker is on a **temporary** Cloudflare preview account (no `wrangler login` yet), so the
-  URL is not permanent. `cd web && npx wrangler login && npm run deploy` moves it to a real one.
-- `ENV=dev` is set so the OTP code is returned in the API response. Without it nobody can log
-  in at all, since WhatsApp delivery is not configured — but it does mean anyone can verify any
-  phone number. Fine for a demo, not for real users.
+Redeploy the frontend with:
+
+```bash
+cd web
+CLOUDFLARE_API_TOKEN=$(cat ~/.cloudflare-token) npx wrangler deploy
+```
+
+Two caveats on the current deployment:
+
+- Render's free tier sleeps after 15 minutes idle, so the first request wakes it in ~40s.
+- `ENV=dev` is set so the OTP code comes back in the API response. Without it nobody can log
+  in at all, since WhatsApp delivery is not configured — but it does mean anyone can verify
+  any phone number. Fine for a demo, not for real users.
 
 ## Status
 

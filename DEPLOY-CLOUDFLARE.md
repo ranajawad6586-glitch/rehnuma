@@ -65,8 +65,15 @@ From the `web/` directory:
 ```bash
 cd web
 npm install
-npx wrangler login            # opens a browser; authorizes this machine
 ```
+
+Authenticate with an **API token** rather than `wrangler login` — the token works headlessly and
+does not expire, whereas deploying without credentials lands on a throwaway preview account
+whose URL Cloudflare reclaims within hours:
+
+1. https://dash.cloudflare.com/profile/api-tokens → **Create Token**
+2. Use the **"Edit Cloudflare Workers"** template, defaults unchanged → **Create Token**
+3. Save it somewhere only you can read, e.g. `~/.cloudflare-token` (chmod 600)
 
 Point the Worker at your Render backend — edit `API_PROXY_TARGET` in
 [web/wrangler.jsonc](web/wrangler.jsonc) to the hostname from step 1 (a bare hostname is fine,
@@ -79,11 +86,11 @@ the proxy prepends `https://`):
 Then deploy:
 
 ```bash
-npm run deploy
+CLOUDFLARE_API_TOKEN=$(cat ~/.cloudflare-token) npx wrangler deploy
 ```
 
 Wrangler prints the live URL: `https://rehnumarent.<your-subdomain>.workers.dev`. That is the
-URL you share.
+URL you share, and it stays the same on every redeploy.
 
 To try it in the real Workers runtime before deploying: `npm run preview` (serves on :8788).
 
