@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="RehnumaRent">
+  <title>RehnumaRent</title>
+  <rect width="1024" height="1024" fill="#c2703d"/>
+  <g transform="translate(187.12 176.88) scale(10.1525)">
+    <path d="M9 58V29.2L32 6l23 23.2V58" fill="none" stroke="#f4efe4" stroke-width="6.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="32" cy="34" r="6.4" fill="#1f5d4c"/>
+  </g>
+</svg>
